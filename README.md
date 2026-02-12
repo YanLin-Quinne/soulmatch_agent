@@ -86,37 +86,72 @@ DEVICE=mps  # macOS M4 Pro
 ### 启动后端服务
 
 ```bash
-cd src/api
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# 终端1
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+访问 API 文档：http://localhost:8000/docs
 
 ### 启动前端
 
 ```bash
+# 终端2
 cd frontend
 npm install
 npm run dev
 ```
 
-### 训练模型
+访问前端：http://localhost:3000
+
+### 生成Bot Personas（首次运行必需）
 
 ```bash
-# SFT 冷启动
-python src/training/sft_trainer.py
+# 下载OkCupid数据
+python scripts/download_okcupid_data.py
 
-# RL 提升
-python src/training/rl_trainer.py
+# 预处理并生成8个Bot personas（需要LLM API）
+python scripts/preprocess_data.py
+```
+
+### 运行测试
+
+```bash
+pytest tests/ -v
+```
+
+### 生成合成对话数据（可选）
+
+```bash
+python -c "
+from src.training.synthetic_dialogue_generator import create_synthetic_dataset
+create_synthetic_dataset(
+    personas_path='data/processed/bot_personas.json',
+    output_path='data/training/synthetic_dialogues.jsonl',
+    num_conversations=100
+)
+"
 ```
 
 ## 开发路线
 
-- [x] 项目初始化
-- [ ] 数据预处理
-- [ ] Agent 实现
-- [ ] 记忆管理系统
-- [ ] 训练 pipeline
-- [ ] 前后端集成
-- [ ] 测试和优化
+- [x] 项目初始化配置
+- [x] 数据预处理引擎（清洗、特征提取、Persona构建）
+- [x] Agent 实现
+  - [x] Persona Agent (8个Bot角色扮演)
+  - [x] Feature Prediction Agent (22维特征推断 + 贝叶斯更新)
+  - [x] Memory Manager (Memory-R1 + ReMemR1)
+  - [x] Emotion Agent (8类情绪检测 + 趋势预测)
+  - [x] Scam Detection Agent (6种诈骗模式检测)
+  - [x] Orchestrator (状态机 + 多Agent协调)
+- [x] 匹配引擎（兼容性评分 + 推荐）
+- [x] 记忆管理系统 (ChromaDB向量存储)
+- [x] 合成对话生成器 (Bot vs Bot训练数据)
+- [ ] SFT 冷启动训练 (待实际数据)
+- [ ] RL 提升训练 (待实际对话数据)
+- [x] 前后端集成
+  - [x] FastAPI + WebSocket 后端
+  - [x] React + TypeScript 前端
+- [x] 测试框架 (单元测试 + 集成测试)
 
 ## License
 
