@@ -1,0 +1,25 @@
+{
+  "name": "soulmatch-agent",
+  "version": "0.1.0",
+  "description": "Social matching agent system based on OkCupid dataset",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "install:frontend": "cd frontend && npm install",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "dev:backend": "cd src/api && uvicorn main:app --reload",
+    "test": "pytest tests/",
+    "lint": "cd frontend && npm run lint"
+  },
+  "keywords": [
+    "agent",
+    "social-matching",
+    "llm",
+    "reinforcement-learning"
+  ],
+  "author": "",
+  "license": "MIT"
+}
