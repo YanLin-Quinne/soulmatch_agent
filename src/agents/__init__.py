@@ -22,6 +22,18 @@ from src.agents.emotion_predictor import (
     EMOTIONS,
     EMOTION_TRANSITIONS
 )
+from src.agents.scam_detection_agent import (
+    ScamDetectionAgent,
+    ScamDetector,
+    SemanticScamAnalyzer
+)
+from src.agents.scam_patterns import (
+    ScamPattern,
+    PATTERN_RULES,
+    RISK_THRESHOLDS,
+    WARNING_MESSAGES,
+    get_pattern_description
+)
 
 __all__ = [
     # Persona Agent
@@ -43,4 +55,14 @@ __all__ = [
     "EmotionPredictor",
     "EMOTIONS",
     "EMOTION_TRANSITIONS",
+    
+    # Scam Detection Agent
+    "ScamDetectionAgent",
+    "ScamDetector",
+    "SemanticScamAnalyzer",
+    "ScamPattern",
+    "PATTERN_RULES",
+    "RISK_THRESHOLDS",
+    "WARNING_MESSAGES",
+    "get_pattern_description",
 ]
