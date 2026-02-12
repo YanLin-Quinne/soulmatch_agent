@@ -13,6 +13,15 @@ from src.agents.prompt_generator import (
     enhance_prompt_with_context,
     extract_system_prompt_summary
 )
+from src.agents.emotion_agent import (
+    EmotionAgent,
+    EmotionDetector
+)
+from src.agents.emotion_predictor import (
+    EmotionPredictor,
+    EMOTIONS,
+    EMOTION_TRANSITIONS
+)
 
 __all__ = [
     # Persona Agent
@@ -27,4 +36,11 @@ __all__ = [
     "create_greeting_prompt",
     "enhance_prompt_with_context",
     "extract_system_prompt_summary",
+    
+    # Emotion Agent
+    "EmotionAgent",
+    "EmotionDetector",
+    "EmotionPredictor",
+    "EMOTIONS",
+    "EMOTION_TRANSITIONS",
 ]
