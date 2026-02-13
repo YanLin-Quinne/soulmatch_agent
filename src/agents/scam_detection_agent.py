@@ -1,4 +1,4 @@
-"""Scam Detection Agent for romance fraud (杀猪盘) detection"""
+"""Scam Detection Agent for romance fraud detection"""
 
 import re
 import json
@@ -6,21 +6,7 @@ from typing import Dict, List, Optional, Tuple
 from collections import defaultdict, Counter
 from loguru import logger
 
-try:
-    import anthropic
-    ANTHROPIC_AVAILABLE = True
-except ImportError:
-    ANTHROPIC_AVAILABLE = False
-    logger.warning("anthropic package not available")
-
-try:
-    import openai
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
-    logger.warning("openai package not available")
-
-from src.config import settings
+from src.agents.llm_router import router, AgentRole
 from src.agents.scam_patterns import (
     ScamPattern,
     PATTERN_RULES,
@@ -224,93 +210,30 @@ class ScamDetector:
 
 
 class SemanticScamAnalyzer:
-    """
-    LLM-based semantic analysis for detecting scam patterns beyond keywords
-    """
-    
-    def __init__(
-        self,
-        use_claude: bool = True,
-        model_name: Optional[str] = None,
-        temperature: float = 0.3
-    ):
-        """
-        Initialize semantic analyzer with LLM
-        
-        Args:
-            use_claude: Use Claude API vs OpenAI
-            model_name: Override default model
-            temperature: LLM temperature (low for consistent detection)
-        """
-        self.use_claude = use_claude and ANTHROPIC_AVAILABLE
-        self.temperature = temperature
-        
-        # Initialize API client
-        if self.use_claude:
-            if not settings.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY not configured")
-            self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-            self.model = model_name or "claude-sonnet-4-20250514"
-            logger.info(f"SemanticScamAnalyzer initialized with Claude: {self.model}")
-        else:
-            if not OPENAI_AVAILABLE:
-                raise ImportError("openai package not installed")
-            if not settings.openai_api_key:
-                raise ValueError("OPENAI_API_KEY not configured")
-            self.client = openai.OpenAI(api_key=settings.openai_api_key)
-            self.model = model_name or "gpt-4o-mini"
-            logger.info(f"SemanticScamAnalyzer initialized with GPT: {self.model}")
-    
+    """LLM-based semantic analysis via LLMRouter."""
+
+    def __init__(self):
+        logger.info("SemanticScamAnalyzer initialized (via LLMRouter)")
+
     def analyze_semantic_risk(
         self,
         message: str,
-        conversation_history: Optional[List[Dict[str, str]]] = None
+        conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, any]:
-        """
-        Analyze message for semantic scam signals using LLM
-        
-        Returns:
-            {
-                "semantic_risk": 0.0-1.0,
-                "detected_tactics": ["love_bombing", "urgency", ...],
-                "reasoning": "explanation",
-                "red_flags": ["具体的危险信号"]
-            }
-        """
         prompt = self._build_semantic_prompt(message, conversation_history)
-        
         try:
-            if self.use_claude:
-                response = self.client.messages.create(
-                    model=self.model,
-                    max_tokens=500,
-                    temperature=self.temperature,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                response_text = response.content[0].text.strip()
-            else:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=self.temperature,
-                    max_tokens=500
-                )
-                response_text = response.choices[0].message.content.strip()
-            
-            # Parse response
-            result = self._parse_semantic_response(response_text)
-            logger.debug(f"Semantic risk: {result['semantic_risk']:.2f}")
-            
-            return result
-            
+            text = router.chat(
+                role=AgentRole.SCAM,
+                system="You are an expert at detecting romance scams in dating conversations.",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=500,
+                json_mode=True,
+            )
+            return self._parse_semantic_response(text)
         except Exception as e:
             logger.error(f"Semantic analysis failed: {e}")
-            return {
-                "semantic_risk": 0.0,
-                "detected_tactics": [],
-                "reasoning": "Analysis failed",
-                "red_flags": []
-            }
+            return {"semantic_risk": 0.0, "detected_tactics": [], "reasoning": "Analysis failed", "red_flags": []}
     
     def _build_semantic_prompt(
         self,
@@ -402,45 +325,13 @@ class ScamDetectionAgent:
     Main Scam Detection Agent combining rule-based and semantic analysis
     """
     
-    def __init__(
-        self,
-        use_semantic: bool = True,
-        use_claude: bool = True,
-        model_name: Optional[str] = None,
-        history_size: int = 50
-    ):
-        """
-        Initialize Scam Detection Agent
-        
-        Args:
-            use_semantic: Enable LLM semantic analysis (recommended)
-            use_claude: Use Claude vs OpenAI for semantic analysis
-            model_name: Override default LLM model
-            history_size: Max conversation history to track
-        """
-        # Core detector (always enabled)
+    def __init__(self, use_semantic: bool = True, history_size: int = 50):
         self.detector = ScamDetector()
-        
-        # Semantic analyzer (optional, requires API key)
         self.use_semantic = use_semantic
-        self.semantic_analyzer = None
-        
-        if use_semantic:
-            try:
-                self.semantic_analyzer = SemanticScamAnalyzer(
-                    use_claude=use_claude,
-                    model_name=model_name
-                )
-                logger.info("Semantic analysis enabled")
-            except Exception as e:
-                logger.warning(f"Semantic analysis disabled: {e}")
-                self.use_semantic = False
-        
-        # Conversation tracking
+        self.semantic_analyzer = SemanticScamAnalyzer() if use_semantic else None
         self.history_size = history_size
         self.conversation_history: List[Dict[str, str]] = []
         self.detected_signals_timeline: List[Dict[str, any]] = []
-        
         logger.info(f"ScamDetectionAgent initialized (semantic={use_semantic})")
     
     def analyze_message(

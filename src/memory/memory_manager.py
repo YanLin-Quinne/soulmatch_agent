@@ -1,275 +1,135 @@
-"""Memory Manager Agent with ADD/UPDATE/DELETE/NOOP/CALLBACK operations"""
+"""Memory Manager — LLM-powered memory decisions via LLMRouter."""
 
+import json
 import uuid
 from typing import Optional, List
 from loguru import logger
 
-try:
-    import anthropic
-    ANTHROPIC_AVAILABLE = True
-except ImportError:
-    ANTHROPIC_AVAILABLE = False
-
-from src.memory.memory_operations import (
-    Memory, MemoryAction, MemoryOperation, MemoryReward
-)
+from src.memory.memory_operations import Memory, MemoryAction, MemoryOperation, MemoryReward
 from src.memory.chromadb_client import ChromaDBClient
-from src.config import settings
+from src.agents.llm_router import router, AgentRole
 
 
 class MemoryManager:
-    """Memory Manager Agent (Memory-R1 + ReMemR1)"""
-    
-    def __init__(
-        self, 
-        user_id: str,
-        db_client: Optional[ChromaDBClient] = None,
-        use_llm: bool = True
-    ):
+    """Memory Manager Agent using LLMRouter for multi-provider support."""
+
+    def __init__(self, user_id: str, db_client: Optional[ChromaDBClient] = None, use_llm: bool = True):
         self.user_id = user_id
         self.db_client = db_client or ChromaDBClient()
         self.use_llm = use_llm
-        
-        # LLM for memory decision-making (optional, for inference)
-        self.llm_client = None
-        if use_llm and ANTHROPIC_AVAILABLE and settings.anthropic_api_key:
-            self.llm_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        
-        # Conversation history (for context)
         self.conversation_history: List[dict] = []
         self.current_turn: int = 0
-    
+
     def add_conversation_turn(self, speaker: str, message: str):
-        """Add a conversation turn"""
-        self.conversation_history.append({
-            "turn": self.current_turn,
-            "speaker": speaker,
-            "message": message
-        })
+        self.conversation_history.append({"turn": self.current_turn, "speaker": speaker, "message": message})
         self.current_turn += 1
-    
-    def decide_memory_action(
-        self, 
-        recent_messages: List[dict],
-        current_features: Optional[dict] = None
-    ) -> MemoryAction:
-        """Decide what memory operation to perform"""
-        
-        if not self.use_llm or not self.llm_client:
-            # Simple heuristic: add memory every few turns
-            if self.current_turn % 5 == 0 and recent_messages:
-                last_msg = recent_messages[-1]
-                return MemoryAction(
-                    operation=MemoryOperation.ADD,
-                    content=last_msg["message"],
-                    memory_type="conversation",
-                    importance=0.5,
-                    reasoning="Periodic save"
-                )
-            else:
-                return MemoryAction(operation=MemoryOperation.NOOP)
-        
-        # Use LLM to decide
-        return self._llm_decide_action(recent_messages, current_features)
-    
-    def _llm_decide_action(
-        self,
-        recent_messages: List[dict],
-        current_features: Optional[dict] = None
-    ) -> MemoryAction:
-        """Use LLM to decide memory action"""
-        
-        # Build context
+
+    def decide_memory_action(self, recent_messages: List[dict], current_features: Optional[dict] = None) -> MemoryAction:
+        if not self.use_llm:
+            return self._heuristic_decide(recent_messages)
+        return self._llm_decide(recent_messages, current_features)
+
+    def retrieve_relevant_memories(self, query: str, n: int = 5) -> List[str]:
+        """Retrieve memory texts relevant to a query."""
+        memories = self.db_client.retrieve_memories(user_id=self.user_id, query_text=query, n_results=n)
+        return [m.content for m in memories] if memories else []
+
+    # ------------------------------------------------------------------
+
+    def _heuristic_decide(self, recent_messages: List[dict]) -> MemoryAction:
+        if self.current_turn % 5 == 0 and recent_messages:
+            return MemoryAction(
+                operation=MemoryOperation.ADD,
+                content=recent_messages[-1]["message"],
+                memory_type="conversation",
+                importance=0.5,
+                reasoning="Periodic save",
+            )
+        return MemoryAction(operation=MemoryOperation.NOOP)
+
+    def _llm_decide(self, recent_messages: List[dict], current_features: Optional[dict]) -> MemoryAction:
         context = "Recent conversation:\n"
-        for msg in recent_messages[-5:]:  # Last 5 messages
+        for msg in recent_messages[-5:]:
             context += f"{msg['speaker']}: {msg['message']}\n"
-        
-        # Get existing memories
-        memories = self.db_client.retrieve_memories(
-            user_id=self.user_id,
-            n_results=5
-        )
-        
-        memory_context = "\nExisting memories:\n"
+
+        memories = self.db_client.retrieve_memories(user_id=self.user_id, n_results=5)
+        mem_ctx = "\nExisting memories:\n"
         if memories:
-            for mem in memories:
-                memory_context += f"- [{mem.memory_id}] {mem.content}\n"
+            for m in memories:
+                mem_ctx += f"- [{m.memory_id}] {m.content}\n"
         else:
-            memory_context += "- (no memories yet)\n"
-        
-        prompt = f"""You are a memory management agent. Decide what memory operation to perform.
+            mem_ctx += "- (no memories yet)\n"
 
-{context}
-
-{memory_context}
-
-Current features: {current_features or 'unknown'}
-
-Available operations:
-- ADD: Create a new memory (important facts, preferences, events)
-- UPDATE: Update an existing memory with new information
-- DELETE: Remove outdated or incorrect memory
-- CALLBACK: Retrieve relevant memories for context
-- NOOP: No action needed
-
-Respond with JSON:
-{{
-  "operation": "<ADD/UPDATE/DELETE/CALLBACK/NOOP>",
-  "content": "<memory content for ADD>",
-  "memory_type": "<conversation/feature/fact/event>",
-  "importance": <0.0-1.0>,
-  "memory_id": "<id for UPDATE/DELETE>",
-  "new_content": "<updated content for UPDATE>",
-  "callback_query": "<query for CALLBACK>",
-  "reasoning": "<why this operation>"
-}}
-
-Only include fields relevant to the chosen operation."""
+        prompt = (
+            f"{context}\n{mem_ctx}\n"
+            f"Current features: {current_features or 'unknown'}\n\n"
+            "Available operations: ADD, UPDATE, DELETE, CALLBACK, NOOP.\n"
+            "Respond with JSON:\n"
+            '{"operation":"<OP>","content":"<for ADD>","memory_type":"<conversation/feature/fact/event>",'
+            '"importance":0.0-1.0,"memory_id":"<for UPDATE/DELETE>",'
+            '"new_content":"<for UPDATE>","callback_query":"<for CALLBACK>","reasoning":"<why>"}'
+        )
 
         try:
-            response = self.llm_client.messages.create(
-                model="claude-sonnet-4-20250514",
+            text = router.chat(
+                role=AgentRole.MEMORY,
+                system="You are a memory management agent for a dating app. Decide what to remember.",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
                 max_tokens=512,
-                messages=[{"role": "user", "content": prompt}]
+                json_mode=True,
             )
-            
-            import json
-            content = response.content[0].text.strip()
-            
-            # Remove markdown
-            if content.startswith("```json"):
-                content = content[7:]
-            if content.startswith("```"):
-                content = content[3:]
-            if content.endswith("```"):
-                content = content[:-3]
-            content = content.strip()
-            
-            action_dict = json.loads(content)
-            action = MemoryAction(**action_dict)
-            
-            if action.validate_action():
-                return action
-            else:
-                logger.warning("Invalid action from LLM, defaulting to NOOP")
-                return MemoryAction(operation=MemoryOperation.NOOP)
-                
+            text = text.strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            if text.startswith("```"):
+                text = text[3:]
+            if text.endswith("```"):
+                text = text[:-3]
+            action = MemoryAction(**json.loads(text.strip()))
+            return action if action.validate_action() else MemoryAction(operation=MemoryOperation.NOOP)
         except Exception as e:
-            logger.error(f"LLM decision failed: {e}")
+            logger.error(f"LLM memory decision failed: {e}")
             return MemoryAction(operation=MemoryOperation.NOOP)
-    
+
+    # ------------------------------------------------------------------
+    # Execute
+    # ------------------------------------------------------------------
+
     def execute_action(self, action: MemoryAction) -> Optional[List[Memory]]:
-        """Execute a memory action"""
-        
         if action.operation == MemoryOperation.ADD:
-            return self._execute_add(action)
-        
+            return self._add(action)
         elif action.operation == MemoryOperation.UPDATE:
-            return self._execute_update(action)
-        
+            return self._update(action)
         elif action.operation == MemoryOperation.DELETE:
-            return self._execute_delete(action)
-        
+            return self._delete(action)
         elif action.operation == MemoryOperation.CALLBACK:
-            return self._execute_callback(action)
-        
-        elif action.operation == MemoryOperation.NOOP:
-            return None
-        
+            return self._callback(action)
         return None
-    
-    def _execute_add(self, action: MemoryAction) -> List[Memory]:
-        """Execute ADD operation"""
-        
+
+    def _add(self, action: MemoryAction) -> List[Memory]:
         memory = Memory(
             memory_id=str(uuid.uuid4()),
             content=action.content,
             memory_type=action.memory_type or "conversation",
             importance=action.importance or 0.5,
             conversation_turn=self.current_turn,
-            tags=action.tags or []
+            tags=action.tags or [],
         )
-        
         self.db_client.add_memory(self.user_id, memory)
-        
         logger.info(f"Added memory: {memory.content[:50]}...")
         return [memory]
-    
-    def _execute_update(self, action: MemoryAction) -> List[Memory]:
-        """Execute UPDATE operation"""
-        
-        self.db_client.update_memory(
-            user_id=self.user_id,
-            memory_id=action.memory_id,
-            new_content=action.new_content
-        )
-        
-        logger.info(f"Updated memory {action.memory_id}")
+
+    def _update(self, action: MemoryAction) -> List[Memory]:
+        self.db_client.update_memory(self.user_id, action.memory_id, action.new_content)
         return []
-    
-    def _execute_delete(self, action: MemoryAction) -> List[Memory]:
-        """Execute DELETE operation"""
-        
-        self.db_client.delete_memory(
-            user_id=self.user_id,
-            memory_id=action.memory_id
-        )
-        
-        logger.info(f"Deleted memory {action.memory_id}")
+
+    def _delete(self, action: MemoryAction) -> List[Memory]:
+        self.db_client.delete_memory(self.user_id, action.memory_id)
         return []
-    
-    def _execute_callback(self, action: MemoryAction) -> List[Memory]:
-        """Execute CALLBACK operation (retrieve memories)"""
-        
-        memories = self.db_client.retrieve_memories(
-            user_id=self.user_id,
-            query_text=action.callback_query,
-            n_results=5
-        )
-        
-        logger.info(f"Retrieved {len(memories)} memories for: {action.callback_query}")
-        return memories
-    
+
+    def _callback(self, action: MemoryAction) -> List[Memory]:
+        return self.db_client.retrieve_memories(self.user_id, query_text=action.callback_query, n_results=5)
+
     def get_all_memories(self) -> List[Memory]:
-        """Get all memories for the user"""
-        return self.db_client.retrieve_memories(
-            user_id=self.user_id,
-            n_results=100
-        )
-    
-    def compute_reward(
-        self,
-        predicted_features: dict,
-        ground_truth_features: dict,
-        memory_action: MemoryAction
-    ) -> MemoryReward:
-        """Compute reward for RL training"""
-        
-        reward = MemoryReward()
-        
-        # Final accuracy (feature prediction vs ground truth)
-        if predicted_features and ground_truth_features:
-            # Simple accuracy: proportion of matching features
-            matches = sum(
-                1 for k in predicted_features 
-                if k in ground_truth_features and predicted_features[k] == ground_truth_features[k]
-            )
-            total = len(ground_truth_features)
-            reward.final_accuracy = matches / total if total > 0 else 0.0
-        
-        # Information gain (did we learn something new?)
-        if memory_action.operation == MemoryOperation.ADD:
-            reward.information_gain = memory_action.importance or 0.5
-        
-        # Memory quality (importance score)
-        if memory_action.operation in [MemoryOperation.ADD, MemoryOperation.UPDATE]:
-            reward.memory_quality = memory_action.importance or 0.5
-        
-        # Retrieval relevance (for CALLBACK)
-        if memory_action.operation == MemoryOperation.CALLBACK:
-            reward.retrieval_relevance = 0.7  # Placeholder
-        
-        # Compute total
-        reward.compute_total()
-        
-        return reward
+        return self.db_client.retrieve_memories(self.user_id, n_results=100)

@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # LLM API Keys
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    gemini_api_key: str = ""
+    deepseek_api_key: str = ""
+    qwen_api_key: str = ""
     
     # Database
     chroma_db_path: str = "./chroma_db"
@@ -34,6 +37,15 @@ class Settings(BaseSettings):
     api_port: int = 8000
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
     
+    # Local LLM (vLLM / Ollama / llama.cpp server — OpenAI-compatible endpoint)
+    local_llm_base_url: str = ""          # e.g. "http://localhost:8080/v1"
+    local_llm_model: str = ""             # model name the server expects, e.g. "qwen3-0.6b"
+    local_llm_api_key: str = "not-needed" # most local servers don't check this
+
+    # HuggingFace (transformers pipeline, no external server needed)
+    hf_model_name: str = ""               # e.g. "Qwen/Qwen3-0.6B"
+    hf_device: str = ""                   # "cpu", "cuda", "mps"; empty = auto-detect
+
     # Kaggle
     kaggle_username: str = ""
     kaggle_key: str = ""

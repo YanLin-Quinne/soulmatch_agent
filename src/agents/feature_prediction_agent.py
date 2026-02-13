@@ -1,133 +1,143 @@
-"""Feature Prediction Agent - Infer user features from conversation"""
+"""Feature Prediction Agent — infer user traits with Bayesian updates + confidence convergence + CoT reasoning."""
 
 import json
 from typing import Dict, List, Optional
 from loguru import logger
 
-try:
-    import anthropic
-    ANTHROPIC_AVAILABLE = True
-except ImportError:
-    ANTHROPIC_AVAILABLE = False
-
-try:
-    import openai
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
-
 from src.agents.bayesian_updater import BayesianFeatureUpdater
-from src.config import settings
+from src.agents.llm_router import router, AgentRole
+from src.agents.reasoning import ChainOfThought, ReasoningTrace
+
+
+# Confidence threshold: stop LLM extraction when average confidence exceeds this
+CONVERGENCE_THRESHOLD = 0.80
+# Minimum information gain to justify an LLM call
+MIN_INFO_GAIN = 0.02
 
 
 class FeaturePredictionAgent:
-    """
-    Agent that predicts user features from conversation history
-    
-    Features predicted (22 dimensions from OkCupid):
-    - Demographics: age, sex, orientation, location
-    - Personality: Big Five traits (openness, conscientiousness, extraversion, agreeableness, neuroticism)
-    - Lifestyle: diet, drinks, drugs, smokes
-    - Values: education, job, religion
-    - Communication: style, interests
-    """
-    
-    def __init__(self, user_id: str, use_claude: bool = True):
+    """Predicts user features from conversation, using confidence-based stopping."""
+
+    def __init__(self, user_id: str, use_cot: bool = True):
         self.user_id = user_id
-        self.use_claude = use_claude and ANTHROPIC_AVAILABLE
-        
-        # Initialize LLM client
-        if self.use_claude:
-            if not settings.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY not set")
-            self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-            logger.info("Using Claude for feature prediction")
-        else:
-            if not OPENAI_AVAILABLE:
-                raise ImportError("openai package not installed")
-            if not settings.openai_api_key:
-                raise ValueError("OPENAI_API_KEY not set")
-            self.client = openai.OpenAI(api_key=settings.openai_api_key)
-            logger.info("Using GPT for feature prediction")
-        
-        # Bayesian updater
         self.bayesian_updater = BayesianFeatureUpdater()
-        
-        # Feature state
         self.predicted_features: Dict[str, any] = {}
         self.feature_confidences: Dict[str, float] = {}
-        
-        # Conversation tracking
         self.conversation_count = 0
-        self.max_update_turns = 30  # Update features for first 30 turns
-    
-    def predict_from_conversation(
-        self,
-        conversation_history: List[dict]
-    ) -> Dict[str, any]:
-        """
-        Predict features from conversation history
-        
-        Args:
-            conversation_history: List of {"speaker": str, "message": str}
-        
-        Returns:
-            Dict with predicted features and confidences
-        """
-        
-        # Only update for first 30 turns
-        if self.conversation_count >= self.max_update_turns:
-            logger.info(f"Reached max update turns ({self.max_update_turns}), using cached features")
-            return {
-                "features": self.predicted_features,
-                "confidences": self.feature_confidences,
-                "turn": self.conversation_count
-            }
-        
-        # Extract features using LLM
-        new_observations = self._extract_features_llm(conversation_history)
-        
-        if not new_observations:
-            logger.warning("No features extracted from conversation")
-            return {
-                "features": self.predicted_features,
-                "confidences": self.feature_confidences,
-                "turn": self.conversation_count
-            }
-        
-        # Bayesian update
-        updated_features, updated_confidences = self._update_features(new_observations)
-        
-        self.predicted_features = updated_features
-        self.feature_confidences = updated_confidences
+        self.use_cot = use_cot
+        self.last_reasoning_trace: Optional[ReasoningTrace] = None
+
+    def predict_from_conversation(self, conversation_history: List[dict]) -> Dict[str, any]:
+        """Extract and update features from conversation history."""
         self.conversation_count += 1
-        
-        logger.info(f"Updated features at turn {self.conversation_count}")
-        
-        return {
-            "features": self.predicted_features,
-            "confidences": self.feature_confidences,
-            "turn": self.conversation_count,
-            "information_gain": new_observations.get("_meta", {}).get("information_gain", 0.0)
-        }
-    
-    def _extract_features_llm(
-        self,
-        conversation_history: List[dict]
-    ) -> Optional[Dict[str, any]]:
-        """Extract features from conversation using LLM"""
-        
-        # Build conversation context
-        conversation_text = "\n".join([
-            f"{msg['speaker']}: {msg['message']}"
-            for msg in conversation_history[-10:]  # Last 10 messages
-        ])
-        
+
+        # Check convergence — skip LLM if all features are high-confidence
+        avg_conf = self._compute_overall_confidence()
+        if avg_conf >= CONVERGENCE_THRESHOLD and self.conversation_count > 5:
+            low = self._low_confidence_features()
+            if not low:
+                logger.info(f"Features converged (avg conf={avg_conf:.2f}), skipping LLM extraction")
+                return self._result()
+
+        new_obs = self._extract_features_llm(conversation_history)
+        if not new_obs:
+            return self._result()
+
+        updated_f, updated_c = self._update_features(new_obs)
+        self.predicted_features = updated_f
+        self.feature_confidences = updated_c
+
+        logger.info(f"Feature update turn={self.conversation_count}, avg_conf={self._compute_overall_confidence():.2f}")
+        return self._result()
+
+    def _extract_features_llm(self, conversation_history: List[dict]) -> Optional[Dict[str, any]]:
+        conversation_text = "\n".join(
+            f"{msg['speaker']}: {msg['message']}" for msg in conversation_history[-10:]
+        )
+
+        # Use Chain-of-Thought reasoning for more accurate predictions
+        if self.use_cot and self.conversation_count >= 3:
+            result = self._extract_features_with_cot(conversation_text)
+            if result is not None:
+                return result
+            logger.debug("CoT extraction returned None, falling back to direct extraction")
+
+        return self._extract_features_direct(conversation_text)
+
+    def _extract_features_with_cot(self, conversation_text: str) -> Optional[Dict[str, any]]:
+        """Use Chain-of-Thought reasoning to analyze the conversation step by step before extracting features."""
+        low_conf = self._low_confidence_features()
+        focus_hint = ""
+        if low_conf:
+            focus_hint = f"\nFocus especially on: {', '.join(low_conf[:6])}\n"
+
+        # Current predictions context for the reasoner
+        current_state = ""
+        if self.predicted_features:
+            current_state = "\nCurrent predictions (update these):\n" + json.dumps(
+                {k: f"{v} (conf={self.feature_confidences.get(k, 0):.0%})"
+                 for k, v in list(self.predicted_features.items())[:10]},
+                indent=2,
+            )
+
+        cot_prompt = (
+            f"Analyze this dating app conversation to infer personality traits.\n\n"
+            f"Conversation:\n{conversation_text}\n{focus_hint}{current_state}\n\n"
+            f"Think step by step:\n"
+            f"1. What topics did the user bring up or respond to enthusiastically?\n"
+            f"2. What does their language style reveal about personality (formal/casual, direct/indirect)?\n"
+            f"3. What values or priorities are evident?\n"
+            f"4. What Big Five traits can be inferred from their behavior?\n"
+            f"5. What interests are clearly demonstrated vs. speculative?\n\n"
+            f"After reasoning, produce the final feature JSON (same schema as before)."
+        )
+
+        try:
+            trace = ChainOfThought.reason(
+                role=AgentRole.FEATURE,
+                system="You are a psychology expert analyzing dating conversations. Reason carefully before concluding.",
+                messages=[{"role": "user", "content": cot_prompt}],
+                temperature=0.3,
+                max_tokens=1200,
+            )
+            self.last_reasoning_trace = trace
+            logger.debug(f"CoT reasoning: {len(trace.steps)} steps, conf={trace.confidence:.2f}")
+
+            # Try to extract JSON from the conclusion
+            answer = trace.final_answer
+            # Look for JSON block in the answer
+            json_match = None
+            if "{" in answer:
+                start = answer.index("{")
+                depth = 0
+                for i in range(start, len(answer)):
+                    if answer[i] == "{":
+                        depth += 1
+                    elif answer[i] == "}":
+                        depth -= 1
+                    if depth == 0:
+                        json_match = answer[start:i+1]
+                        break
+            if json_match:
+                return json.loads(json_match)
+            return None
+
+        except Exception as e:
+            logger.error(f"CoT feature extraction failed: {e}")
+            return None
+
+    def _extract_features_direct(self, conversation_text: str) -> Optional[Dict[str, any]]:
+        """Direct LLM extraction without reasoning chain (fallback)."""
+        low_conf = self._low_confidence_features()
+        focus_hint = ""
+        if low_conf:
+            focus_hint = f"\nPay special attention to: {', '.join(low_conf[:8])}\n"
+
         prompt = f"""Analyze this dating app conversation and infer the user's features. Respond ONLY with valid JSON.
 
 Conversation:
 {conversation_text}
-
+{focus_hint}
 Infer the following features (use null if uncertain):
 
 {{
@@ -135,7 +145,6 @@ Infer the following features (use null if uncertain):
   "sex": "<m/f or null>",
   "orientation": "<straight/gay/bisexual or null>",
   "location": "<city or null>",
-  
   "big_five": {{
     "openness": <0.0-1.0 or null>,
     "conscientiousness": <0.0-1.0 or null>,
@@ -143,240 +152,147 @@ Infer the following features (use null if uncertain):
     "agreeableness": <0.0-1.0 or null>,
     "neuroticism": <0.0-1.0 or null>
   }},
-  
   "lifestyle": {{
     "diet": "<omnivore/vegetarian/vegan/other or null>",
     "drinks": "<not_at_all/rarely/socially/often/very_often or null>",
     "smokes": "<no/sometimes/yes or null>",
     "drugs": "<never/sometimes or null>"
   }},
-  
   "background": {{
     "education": "<high_school/some_college/bachelors/masters/phd or null>",
     "job": "<field or null>",
     "religion": "<atheist/agnostic/christian/jewish/muslim/hindu/buddhist/other or null>"
   }},
-  
   "interests": {{
-    "music": <0.0-1.0>,
-    "sports": <0.0-1.0>,
-    "travel": <0.0-1.0>,
-    "food": <0.0-1.0>,
-    "arts": <0.0-1.0>,
-    "tech": <0.0-1.0>,
-    "outdoors": <0.0-1.0>,
-    "books": <0.0-1.0>
+    "music": <0.0-1.0>, "sports": <0.0-1.0>, "travel": <0.0-1.0>, "food": <0.0-1.0>,
+    "arts": <0.0-1.0>, "tech": <0.0-1.0>, "outdoors": <0.0-1.0>, "books": <0.0-1.0>
   }},
-  
   "communication_style": "<direct/indirect/humorous/serious/casual/formal or null>",
   "relationship_goals": "<casual/serious/friendship/unsure or null>",
-  
   "_confidence": {{
-    "age": <0.0-1.0>,
-    "sex": <0.0-1.0>,
-    "orientation": <0.0-1.0>,
-    "big_five_openness": <0.0-1.0>,
-    "big_five_conscientiousness": <0.0-1.0>,
-    "big_five_extraversion": <0.0-1.0>,
-    "big_five_agreeableness": <0.0-1.0>,
+    "age": <0.0-1.0>, "sex": <0.0-1.0>, "orientation": <0.0-1.0>,
+    "big_five_openness": <0.0-1.0>, "big_five_conscientiousness": <0.0-1.0>,
+    "big_five_extraversion": <0.0-1.0>, "big_five_agreeableness": <0.0-1.0>,
     "big_five_neuroticism": <0.0-1.0>,
-    "lifestyle_diet": <0.0-1.0>,
-    "lifestyle_drinks": <0.0-1.0>,
+    "lifestyle_diet": <0.0-1.0>, "lifestyle_drinks": <0.0-1.0>,
     "background_education": <0.0-1.0>,
     "interests_music": <0.0-1.0>,
-    "communication_style": <0.0-1.0>,
-    "relationship_goals": <0.0-1.0>
+    "communication_style": <0.0-1.0>, "relationship_goals": <0.0-1.0>
   }}
 }}
 
 Guidelines:
-- Only infer what can be reasonably deduced from the conversation
-- Set confidence based on evidence strength (0.0 = no evidence, 1.0 = very strong evidence)
-- Use null for features with no evidence
+- Only infer what can be reasonably deduced
+- Confidence: 0.0=no evidence, 1.0=very strong evidence
 - Big Five: 0=low, 0.5=average, 1=high
-- Interests: strength of interest (0=none, 1=very strong)
-
-Respond with ONLY the JSON object."""
+- Interests: 0=none, 1=very strong"""
 
         try:
-            if self.use_claude:
-                response = self.client.messages.create(
-                    model="claude-sonnet-4-20250514",
-                    max_tokens=1024,
-                    temperature=0.3,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                content = response.content[0].text
-            else:
-                response = self.client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3,
-                    max_tokens=1024
-                )
-                content = response.choices[0].message.content
-            
-            # Parse JSON
-            content = content.strip()
-            if content.startswith("```json"):
-                content = content[7:]
-            if content.startswith("```"):
-                content = content[3:]
-            if content.endswith("```"):
-                content = content[:-3]
-            content = content.strip()
-            
-            features = json.loads(content)
-            return features
-            
+            text = router.chat(
+                role=AgentRole.FEATURE,
+                system="You are a psychology expert analyzing dating conversations to infer personality traits.",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=1024,
+                json_mode=True,
+            )
+            text = text.strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            if text.startswith("```"):
+                text = text[3:]
+            if text.endswith("```"):
+                text = text[:-3]
+            return json.loads(text.strip())
         except Exception as e:
             logger.error(f"Feature extraction failed: {e}")
             return None
-    
-    def _update_features(
-        self,
-        new_observations: Dict[str, any]
-    ) -> tuple[Dict[str, any], Dict[str, float]]:
-        """Update features using Bayesian update"""
-        
-        # Extract confidences
-        confidences = new_observations.pop("_confidence", {})
-        
-        # Flatten nested structure for updating
-        flat_observations = {}
-        flat_confidences = {}
-        
-        # Simple features
-        for key in ["age", "sex", "orientation", "location", 
-                   "communication_style", "relationship_goals"]:
-            if key in new_observations and new_observations[key] is not None:
-                flat_observations[key] = new_observations[key]
-                flat_confidences[key] = confidences.get(key, 0.5)
-        
-        # Big Five
-        if "big_five" in new_observations:
-            for trait, value in new_observations["big_five"].items():
-                if value is not None:
-                    flat_observations[f"big_five_{trait}"] = value
-                    flat_confidences[f"big_five_{trait}"] = confidences.get(f"big_five_{trait}", 0.5)
-        
-        # Lifestyle
-        if "lifestyle" in new_observations:
-            for key, value in new_observations["lifestyle"].items():
-                if value is not None:
-                    flat_observations[f"lifestyle_{key}"] = value
-                    flat_confidences[f"lifestyle_{key}"] = confidences.get(f"lifestyle_{key}", 0.5)
-        
-        # Background
-        if "background" in new_observations:
-            for key, value in new_observations["background"].items():
-                if value is not None:
-                    flat_observations[f"background_{key}"] = value
-                    flat_confidences[f"background_{key}"] = confidences.get(f"background_{key}", 0.5)
-        
-        # Interests (numeric)
-        if "interests" in new_observations:
-            for interest, value in new_observations["interests"].items():
-                flat_observations[f"interest_{interest}"] = value
-                flat_confidences[f"interest_{interest}"] = confidences.get(f"interests_{interest}", 0.5)
-        
-        # Bayesian update for numeric features
-        numeric_keys = [k for k in flat_observations.keys() 
-                       if k.startswith("big_five_") or k.startswith("interest_")]
-        
-        updated_numeric_features = {}
-        updated_numeric_confidences = {}
-        
+
+    def _update_features(self, new_obs: Dict[str, any]) -> tuple[Dict, Dict]:
+        confidences = new_obs.pop("_confidence", {})
+
+        flat_obs: Dict[str, any] = {}
+        flat_conf: Dict[str, float] = {}
+
+        for key in ("age", "sex", "orientation", "location", "communication_style", "relationship_goals"):
+            if key in new_obs and new_obs[key] is not None:
+                flat_obs[key] = new_obs[key]
+                flat_conf[key] = confidences.get(key, 0.5)
+
+        for group in ("big_five", "lifestyle", "background", "interests"):
+            if group in new_obs:
+                for k, v in new_obs[group].items():
+                    if v is not None:
+                        fk = f"{group}_{k}" if group != "interests" else f"interest_{k}"
+                        flat_obs[fk] = v
+                        flat_conf[fk] = confidences.get(f"{group}_{k}" if group != "interests" else f"interests_{k}", 0.5)
+
+        numeric_keys = [k for k in flat_obs if k.startswith("big_five_") or k.startswith("interest_")]
+        categorical_keys = [k for k in flat_obs if k not in numeric_keys]
+
+        updated_f: Dict[str, any] = {}
+        updated_c: Dict[str, float] = {}
+
         for key in numeric_keys:
-            prior_value = self.predicted_features.get(key, 0.5)
-            prior_conf = self.feature_confidences.get(key, 0.3)
-            
-            new_value = flat_observations[key]
-            new_conf = flat_confidences[key]
-            
-            updated_value, updated_conf = self.bayesian_updater.update_feature(
-                prior_value=prior_value,
-                prior_confidence=prior_conf,
-                new_observation=new_value,
-                observation_confidence=new_conf
-            )
-            
-            updated_numeric_features[key] = updated_value
-            updated_numeric_confidences[key] = updated_conf
-        
-        # For categorical features, use new observation if confidence is higher
-        categorical_keys = [k for k in flat_observations.keys() if k not in numeric_keys]
-        
-        updated_categorical_features = {}
-        updated_categorical_confidences = {}
-        
+            pv = self.predicted_features.get(key, 0.5)
+            pc = self.feature_confidences.get(key, 0.3)
+            nv, nc = self.bayesian_updater.update_feature(pv, pc, flat_obs[key], flat_conf[key])
+            updated_f[key] = nv
+            updated_c[key] = nc
+
         for key in categorical_keys:
-            new_value = flat_observations[key]
-            new_conf = flat_confidences[key]
-            
+            nv, nc = flat_obs[key], flat_conf[key]
             if key in self.predicted_features:
-                prior_conf = self.feature_confidences.get(key, 0.3)
-                
-                # Use new value if confidence is higher
-                if new_conf > prior_conf:
-                    updated_categorical_features[key] = new_value
-                    updated_categorical_confidences[key] = new_conf
+                pc = self.feature_confidences.get(key, 0.3)
+                if nc > pc:
+                    updated_f[key] = nv
+                    updated_c[key] = nc
                 else:
-                    updated_categorical_features[key] = self.predicted_features[key]
-                    updated_categorical_confidences[key] = prior_conf
+                    updated_f[key] = self.predicted_features[key]
+                    updated_c[key] = pc
             else:
-                updated_categorical_features[key] = new_value
-                updated_categorical_confidences[key] = new_conf
-        
-        # Combine
-        updated_features = {**updated_numeric_features, **updated_categorical_features}
-        updated_confidences = {**updated_numeric_confidences, **updated_categorical_confidences}
-        
-        return updated_features, updated_confidences
-    
-    def get_feature_summary(self) -> Dict[str, any]:
-        """Get human-readable feature summary"""
-        
-        summary = {
-            "demographics": {},
-            "personality": {},
-            "lifestyle": {},
-            "interests": {},
-            "overall_confidence": self._compute_overall_confidence()
+                updated_f[key] = nv
+                updated_c[key] = nc
+
+        return updated_f, updated_c
+
+    def _result(self) -> Dict[str, any]:
+        return {
+            "features": self.predicted_features,
+            "confidences": self.feature_confidences,
+            "turn": self.conversation_count,
+            "low_confidence": self._low_confidence_features(),
+            "average_confidence": self._compute_overall_confidence(),
         }
-        
-        # Demographics
-        for key in ["age", "sex", "orientation", "location"]:
-            if key in self.predicted_features:
-                summary["demographics"][key] = {
-                    "value": self.predicted_features[key],
-                    "confidence": self.feature_confidences.get(key, 0.0)
-                }
-        
-        # Personality (Big Five)
-        for trait in ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]:
-            key = f"big_five_{trait}"
-            if key in self.predicted_features:
-                summary["personality"][trait] = {
-                    "value": self.predicted_features[key],
-                    "confidence": self.feature_confidences.get(key, 0.0)
-                }
-        
-        # Interests
-        for interest in ["music", "sports", "travel", "food", "arts", "tech", "outdoors", "books"]:
-            key = f"interest_{interest}"
-            if key in self.predicted_features:
-                summary["interests"][interest] = {
-                    "value": self.predicted_features[key],
-                    "confidence": self.feature_confidences.get(key, 0.0)
-                }
-        
-        return summary
-    
+
+    def _low_confidence_features(self, threshold: float = 0.5) -> List[str]:
+        """Return feature keys with confidence below threshold."""
+        all_keys = [
+            "age", "sex", "orientation", "communication_style", "relationship_goals",
+            "big_five_openness", "big_five_conscientiousness", "big_five_extraversion",
+            "big_five_agreeableness", "big_five_neuroticism",
+            "interest_music", "interest_sports", "interest_travel", "interest_food",
+            "interest_arts", "interest_tech", "interest_outdoors", "interest_books",
+        ]
+        return [k for k in all_keys if self.feature_confidences.get(k, 0.0) < threshold]
+
     def _compute_overall_confidence(self) -> float:
-        """Compute overall confidence across all features"""
-        
         if not self.feature_confidences:
             return 0.0
-        
         return sum(self.feature_confidences.values()) / len(self.feature_confidences)
+
+    def get_feature_summary(self) -> Dict[str, any]:
+        summary = {"demographics": {}, "personality": {}, "lifestyle": {}, "interests": {},
+                   "overall_confidence": self._compute_overall_confidence()}
+        for key in ("age", "sex", "orientation", "location"):
+            if key in self.predicted_features:
+                summary["demographics"][key] = {"value": self.predicted_features[key], "confidence": self.feature_confidences.get(key, 0.0)}
+        for trait in ("openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"):
+            k = f"big_five_{trait}"
+            if k in self.predicted_features:
+                summary["personality"][trait] = {"value": self.predicted_features[k], "confidence": self.feature_confidences.get(k, 0.0)}
+        for interest in ("music", "sports", "travel", "food", "arts", "tech", "outdoors", "books"):
+            k = f"interest_{interest}"
+            if k in self.predicted_features:
+                summary["interests"][interest] = {"value": self.predicted_features[k], "confidence": self.feature_confidences.get(k, 0.0)}
+        return summary

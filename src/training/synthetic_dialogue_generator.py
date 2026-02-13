@@ -451,29 +451,18 @@ def create_synthetic_dataset(
     num_conversations: int = 100,
     balanced: bool = True,
     conversations_per_pair: int = 3,
-    use_claude: bool = True,
-    resume: bool = True
+    resume: bool = True,
 ) -> Path:
     """
-    Quick setup: Generate synthetic dialogue dataset from bot personas
-    
-    Args:
-        personas_path: Path to bot_personas.json
-        output_dir: Output directory for dataset
-        num_conversations: Total conversations (if not balanced)
-        balanced: Use balanced generation (recommended)
-        conversations_per_pair: Conversations per bot pair (if balanced)
-        use_claude: Use Claude API (vs OpenAI)
-        resume: Resume from existing file
-    
+    Quick setup: Generate synthetic dialogue dataset from bot personas.
+
     Returns:
         Path to generated dataset file
     """
     from src.agents.persona_agent import PersonaAgentPool
-    
-    # Load agent pool
+
     logger.info(f"Loading personas from {personas_path}")
-    pool = PersonaAgentPool(use_claude=use_claude, temperature=0.8)
+    pool = PersonaAgentPool(temperature=0.8)
     pool.load_from_file(personas_path)
     
     # Create generator

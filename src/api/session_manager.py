@@ -50,31 +50,24 @@ class SessionManager:
         self.bot_personas_pool = pool
         logger.info(f"Bot personas pool set with {len(pool)} personas")
     
-    def create_session(self, user_id: str, use_claude: bool = True) -> str:
+    def create_session(self, user_id: str) -> str:
         """
-        Create a new session for a user
-        
-        Args:
-            user_id: Unique user identifier
-            use_claude: Use Claude API vs OpenAI (default: Claude)
-        
+        Create a new session for a user.
+
         Returns:
             session_id (same as user_id in this simple implementation)
         """
         if not self.bot_personas_pool:
             raise RuntimeError("Bot personas pool not initialized. Call set_bot_personas_pool() first.")
-        
-        # Check if session already exists
+
         if user_id in self.sessions:
             logger.info(f"Session already exists for user {user_id}, reusing")
             self.session_metadata[user_id]["last_active"] = time.time()
             return user_id
-        
-        # Create new OrchestratorAgent
+
         orchestrator = OrchestratorAgent(
             user_id=user_id,
             bot_personas_pool=self.bot_personas_pool,
-            use_claude=use_claude
         )
         
         self.sessions[user_id] = orchestrator

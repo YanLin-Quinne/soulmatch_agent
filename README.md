@@ -1,158 +1,223 @@
-# SoulMatch Agent
+# SoulMatch
 
-基于 OkCupid 数据集的社交匹配 Agent 系统。
+AI-powered dating prediction agent. Chat with 8 bot personas — after 30 exchanges the system predicts personality traits, emotional patterns, and social tendencies.
 
-## 项目概述
+## Architecture
 
-SoulMatch Agent 是一个创新的社交匹配系统，包含虚拟小镇场景，8假2真的人物混合，通过对话推断用户特征，情绪识别，杀猪盘检测，以及使用 SFT+RL 训练记忆管理和特征预测能力。
+```
+Frontend (React + Vite)
+    │  WebSocket
+    ▼
+FastAPI Backend ─── SessionManager
+    │
+    ▼
+OrchestratorAgent (pipeline coordinator)
+    │
+    ├─ Phase 1 [parallel]
+    │   ├── EmotionAgent        → detect emotion, intensity, reply strategy
+    │   ├── ScamDetectionAgent  → rule + semantic scam detection
+    │   └── MemoryManager       → retrieve relevant memories from ChromaDB
+    │
+    ├─ Phase 2 [sequential]
+    │   └── FeaturePredictionAgent → CoT reasoning → 22-dim features (confidence convergence)
+    │
+    ├─ Phase 3 [sequential]
+    │   └── QuestionStrategyAgent → probe low-confidence features naturally
+    │
+    ├─ Phase 4 [sequential]
+    │   └── PersonaAgent → tool calling → generate bot response (full context injection)
+    │
+    └─ Phase 5 [sequential]
+        └── MemoryManager → store new memories
 
-## 核心特性
+MCP Server (stdio)
+    └── Exposes: analyze_emotion, predict_features, check_scam, suggest_topics, get_usage_stats
+```
 
-- **多Agent架构**: Orchestrator, Persona, Feature Prediction, Memory Manager, Emotion, Scam Detection
-- **记忆增强**: 借鉴 Memory-R1 和 ReMemR1 的记忆管理机制
-- **特征推断**: 从对话中推断用户22个维度特征，支持贝叶斯更新
-- **情绪分析**: 实时8类情绪检测和趋势预测
-- **安全保护**: 杀猪盘检测和预警系统
-- **智能训练**: SFT冷启动 + GRPO强化学习提升
+### Multi-Provider LLM Router
 
-## 技术栈
+Unified interface across 5 providers with automatic fallback:
 
-- **后端**: Python 3.12, FastAPI, WebSocket
-- **前端**: React, TypeScript
-- **模型**: Qwen3-0.6B (训练), Claude/GPT API (推理)
-- **向量数据库**: ChromaDB
-- **训练框架**: PyTorch, Transformers, TRL
+| Agent Role | Primary | Fallback Chain |
+|---|---|---|
+| Persona | Claude Sonnet | GPT-4o → DeepSeek Chat → Qwen Plus |
+| Emotion | Gemini Flash | Claude Haiku → GPT-4o-mini → Qwen Turbo |
+| Feature | Claude Sonnet | GPT-4o → DeepSeek Chat → Qwen Plus |
+| Scam | Claude Haiku | GPT-4o-mini → Gemini Flash → DeepSeek |
+| Memory | Claude Haiku | GPT-4o-mini → Gemini Flash → Qwen Turbo |
+| Question | Gemini Flash | Claude Haiku → DeepSeek → Qwen Turbo |
 
-## 项目结构
+Cost tracking per provider. Lazy client initialization.
+
+### Shared AgentContext
+
+All agents share a mutable `AgentContext` per turn — emotion, memories, feature predictions, probing goals, and tool results flow through the pipeline so each agent sees the full picture.
+
+## What's Implemented
+
+- **Multi-LLM Router** — 5 providers (Anthropic, OpenAI, Gemini, DeepSeek, Qwen), 9 models, automatic fallback, cost tracking
+- **Memory** — ChromaDB vector store, LLM-scored importance, memories injected into persona system prompts
+- **Confidence Convergence** — replaced hard 30-turn cutoff; feature prediction stops early when avg confidence > 0.80
+- **Question Strategy** — agent suggests 1-3 natural topics to probe low-confidence features
+- **Emotion Detection** — 8 emotion categories, intensity tracking, reply strategy
+- **Scam Detection** — rule-based pattern matching + LLM semantic analysis
+- **Bayesian Feature Updater** — 22-dimension trait prediction with prior updating
+- **Pipeline Orchestration** — parallel Phase 1, sequential Phases 2-5, shared context throughout
+- **Tool Calling** — ToolRegistry + ToolExecutor with 6 built-in tools (time, web search, weather, dating advice, compatibility, conversation stats). PersonaAgent uses Claude native `tool_use` with prompt-based fallback for other providers
+- **MCP Server** — Model Context Protocol server exposes 5 SoulMatch capabilities (emotion analysis, feature prediction, scam check, topic suggestion, usage stats) via stdio transport. Compatible with Claude Desktop and any MCP client
+- **Structured Reasoning** — Chain-of-Thought (step-by-step decomposition with `<reasoning>`/`<conclusion>` tags) and ReAct (Thought → Action → Observation loops). FeaturePredictionAgent uses CoT from turn 3+ for more accurate trait inference
+- **SFT Training Pipeline** — FeaturePredictionDataset + MemorySummarizationDataset from synthetic dialogues, SFTTrainer with Qwen3-0.6B default, ChatML formatting, train/eval split
+- **RL (GRPO) Training Pipeline** — Group Relative Policy Optimization with multi-signal reward (JSON validity +0.2, feature accuracy +0.5, confidence calibration +0.15, completeness +0.15). Trains on top of SFT model
+
+## What's NOT Implemented
+
+- **Dynamic Multi-Agent Discussion** — fixed pipeline, no free-form agent debate
+- **Local / HuggingFace LLM Inference** — router only calls cloud APIs; training uses local models but inference doesn't yet
+- **Session Persistence** — sessions are in-memory only, lost on restart
+- **Streaming Responses** — WebSocket sends complete messages, no token-by-token streaming
+- **Web Search / Weather (live)** — tool stubs return placeholders; plug in SerpAPI/Brave + OpenWeatherMap keys to enable
+
+## Tech Stack
+
+- **Backend**: Python 3.12, FastAPI, WebSocket, Pydantic
+- **Frontend**: React 18, TypeScript, Vite
+- **Vector DB**: ChromaDB
+- **LLM Providers**: Anthropic (Claude), OpenAI (GPT-4o), Google (Gemini), DeepSeek, Qwen
+- **MCP**: mcp 1.26+ (stdio transport)
+- **Training**: PyTorch, Transformers, TRL (SFT + GRPO)
+
+## Project Structure
 
 ```
 SoulMatch/
 ├── src/
-│   ├── agents/           # Agent 实现
-│   ├── memory/           # Memory Manager + ChromaDB
-│   ├── data/             # OkCupid 数据处理
-│   ├── training/         # SFT + RL 训练脚本
-│   ├── matching/         # 匹配引擎
-│   └── api/              # FastAPI 后端
-├── frontend/             # React 前端
-├── scripts/              # 数据下载、预处理脚本
-├── tests/                # 测试文件
-└── data/                 # 数据存储目录
+│   ├── agents/
+│   │   ├── orchestrator.py              # Pipeline coordinator
+│   │   ├── persona_agent.py             # Bot role-play + tool calling + context injection
+│   │   ├── emotion_agent.py             # 8-category emotion detection
+│   │   ├── feature_prediction_agent.py  # CoT reasoning → 22-dim trait prediction
+│   │   ├── scam_detection_agent.py      # Rule + semantic scam detection
+│   │   ├── question_strategy_agent.py   # Low-confidence feature probing
+│   │   ├── reasoning.py                 # ChainOfThought + ReAct reasoning engines
+│   │   ├── llm_router.py               # Multi-provider LLM client
+│   │   ├── agent_context.py             # Shared per-turn context
+│   │   ├── bayesian_updater.py          # Bayesian trait updater
+│   │   ├── state_machine.py             # Conversation state management
+│   │   ├── prompt_generator.py          # System prompt construction
+│   │   └── tools/
+│   │       ├── registry.py              # Tool schema + dispatch
+│   │       ├── builtin.py               # 6 built-in tools
+│   │       └── executor.py              # Claude tool_use + prompt-based fallback
+│   ├── mcp/
+│   │   └── server.py                    # MCP server (stdio transport)
+│   ├── memory/
+│   │   └── memory_manager.py            # ChromaDB + LLM-scored memories
+│   ├── matching/
+│   │   └── matching_engine.py           # Compatibility scoring
+│   ├── data/                            # OkCupid data processing
+│   ├── training/
+│   │   ├── conversation_simulator.py    # Bot-to-bot dialogue generation
+│   │   ├── synthetic_dialogue_generator.py  # Training data generator
+│   │   ├── sft_trainer.py               # SFT cold start (Qwen3-0.6B)
+│   │   └── rl_trainer.py                # GRPO reinforcement learning
+│   ├── api/
+│   │   ├── main.py                      # FastAPI + WebSocket + tool registration
+│   │   └── session_manager.py           # Session lifecycle
+│   └── config.py                        # Pydantic settings
+├── frontend/
+│   └── src/
+│       ├── App.tsx                       # React UI (select + chat pages)
+│       └── index.css                     # Dark theme styles
+├── mcp_config.json                      # Claude Desktop MCP integration
+├── data/
+│   └── processed/
+│       └── bot_personas.json            # 8 bot persona definitions
+├── scripts/                             # Data download, preprocessing
+└── tests/                               # Unit + integration tests
 ```
 
-## 安装
+## Setup
 
-### 1. 环境配置
+### 1. Install Dependencies
 
 ```bash
-# 创建虚拟环境
 python3.12 -m venv venv
 source venv/bin/activate
-
-# 安装依赖
-pip install -r requirements.txt
+pip install fastapi uvicorn websockets anthropic openai google-genai chromadb loguru pydantic-settings scikit-learn pandas numpy torch transformers trl mcp
 ```
 
-### 2. 数据准备
+### 2. Configure API Keys
 
-```bash
-# 配置 Kaggle API
-export KAGGLE_USERNAME=your_username
-export KAGGLE_KEY=your_key
-
-# 下载 OkCupid 数据集
-python scripts/download_okcupid_data.py
-```
-
-### 3. 配置环境变量
-
-创建 `.env` 文件：
+Create `.env`:
 
 ```env
-# LLM API Keys
-ANTHROPIC_API_KEY=your_anthropic_key
-OPENAI_API_KEY=your_openai_key
-
-# Database
+ANTHROPIC_API_KEY=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
+OPENAI_API_KEY=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
+GEMINI_API_KEY=AIzaSyC5r9e1ltnY_8TOKrdSbWrfbyl1KkGuXOQ
+DEEPSEEK_API_KEY=sk-18b0c5dddcbd486f9fe9d6cc25e2dc86
+QWEN_API_KEY=sk-8a87e6ea2c1349cabe97cc6a4f6a946a
 CHROMA_DB_PATH=./chroma_db
-
-# Training
-MODEL_NAME=Qwen/Qwen2.5-0.5B
-DEVICE=mps  # macOS M4 Pro
 ```
 
-## 使用
+All 5 keys are optional — the router falls back to available providers.
 
-### 启动后端服务
-
-```bash
-# 终端1
-uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-访问 API 文档：http://localhost:8000/docs
-
-### 启动前端
+### 3. Generate Bot Personas (first run)
 
 ```bash
-# 终端2
-cd frontend
-npm install
-npm run dev
-```
-
-访问前端：http://localhost:3000
-
-### 生成Bot Personas（首次运行必需）
-
-```bash
-# 下载OkCupid数据
 python scripts/download_okcupid_data.py
-
-# 预处理并生成8个Bot personas（需要LLM API）
 python scripts/preprocess_data.py
 ```
 
-### 运行测试
+### 4. Run
 
 ```bash
-pytest tests/ -v
+# Terminal 1 — backend
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+
+# Terminal 2 — frontend
+cd frontend && npm install && npm run dev
+
+# Optional: MCP server (for Claude Desktop integration)
+python -m src.mcp.server
 ```
 
-### 生成合成对话数据（可选）
+- Backend API docs: http://localhost:8000/docs
+- Frontend: http://localhost:5173
+- Admin endpoints: `/api/v1/admin/usage`, `/api/v1/admin/tools`
+
+### 5. Training (optional)
 
 ```bash
-python -c "
-from src.training.synthetic_dialogue_generator import create_synthetic_dataset
-create_synthetic_dataset(
-    personas_path='data/processed/bot_personas.json',
-    output_path='data/training/synthetic_dialogues.jsonl',
-    num_conversations=100
-)
-"
+# Step 1: Generate synthetic dialogue data
+python -c "from src.training import create_synthetic_dataset; create_synthetic_dataset()"
+
+# Step 2: SFT cold start
+python -m src.training.sft_trainer --data data/training/synthetic_dialogues.jsonl --model Qwen/Qwen3-0.6B --epochs 3
+
+# Step 3: RL (GRPO) to improve pass@1
+python -m src.training.rl_trainer --sft-model models/sft/final --data data/training/synthetic_dialogues.jsonl
 ```
 
-## 开发路线
+## Roadmap
 
-- [x] 项目初始化配置
-- [x] 数据预处理引擎（清洗、特征提取、Persona构建）
-- [x] Agent 实现
-  - [x] Persona Agent (8个Bot角色扮演)
-  - [x] Feature Prediction Agent (22维特征推断 + 贝叶斯更新)
-  - [x] Memory Manager (Memory-R1 + ReMemR1)
-  - [x] Emotion Agent (8类情绪检测 + 趋势预测)
-  - [x] Scam Detection Agent (6种诈骗模式检测)
-  - [x] Orchestrator (状态机 + 多Agent协调)
-- [x] 匹配引擎（兼容性评分 + 推荐）
-- [x] 记忆管理系统 (ChromaDB向量存储)
-- [x] 合成对话生成器 (Bot vs Bot训练数据)
-- [ ] SFT 冷启动训练 (待实际数据)
-- [ ] RL 提升训练 (待实际对话数据)
-- [x] 前后端集成
-  - [x] FastAPI + WebSocket 后端
-  - [x] React + TypeScript 前端
-- [x] 测试框架 (单元测试 + 集成测试)
+- [x] Multi-provider LLM router with fallback + cost tracking
+- [x] Memory injection into persona prompts (ChromaDB)
+- [x] Confidence-based convergence for feature prediction
+- [x] Question strategy agent for low-confidence features
+- [x] Shared AgentContext pipeline
+- [x] Parallel Phase 1 execution (emotion + scam + memory)
+- [x] English-only frontend with avatar cards
+- [x] Tool calling — ToolRegistry + ToolExecutor, Claude native tool_use + prompt-based fallback
+- [x] MCP server — expose agent capabilities via Model Context Protocol
+- [x] Structured reasoning — CoT + ReAct chains for feature prediction
+- [x] SFT cold start training — FeaturePredictionDataset + MemorySummarizationDataset + SFTTrainer
+- [x] RL (GRPO) training — multi-signal reward function + GRPOTrainer
+- [ ] Dynamic multi-agent discussion — agents debate before responding
+- [ ] Local / HF LLM inference — serve Qwen3 or LLaMA locally via vLLM
+- [ ] Session persistence — Redis or SQLite for session state
+- [ ] Streaming responses — token-by-token WebSocket streaming
+- [ ] Live web search / weather — plug in real API keys
 
 ## License
 
-MIT License
+MIT

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "soulmatch": {
+      "command": "python",
+      "args": ["-m", "src.mcp.server"],
+      "cwd": "/Users/quinne/SoulMatch",
+      "env": {}
+    }
+  }
+}

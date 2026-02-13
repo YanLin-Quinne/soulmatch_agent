@@ -14,6 +14,8 @@ from src.api.session_manager import session_manager
 from src.api.chat_handler import chat_handler
 from src.api.websocket import websocket_endpoint
 from src.agents.persona_agent import create_agent_pool_from_file
+from src.agents.tools.builtin import register_builtin_tools
+from src.agents.llm_router import router
 
 
 # ============================================
@@ -23,7 +25,6 @@ from src.agents.persona_agent import create_agent_pool_from_file
 class SessionStartRequest(BaseModel):
     """Request to start a new session"""
     user_id: str = Field(..., description="Unique user identifier")
-    use_claude: bool = Field(True, description="Use Claude API (default) vs OpenAI")
 
 
 class SessionStartResponse(BaseModel):
@@ -76,7 +77,11 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Starting up SoulMatch API...")
-    
+
+    # Register tools
+    register_builtin_tools()
+    logger.info(f"Registered built-in tools for agent tool calling")
+
     # Load bot personas
     personas_path = settings.data_dir / "processed" / "bot_personas.json"
     
@@ -89,7 +94,6 @@ async def lifespan(app: FastAPI):
             # Create agent pool from file
             bot_pool = create_agent_pool_from_file(
                 personas_path=personas_path,
-                use_claude=True,  # Default to Claude
                 temperature=0.8
             )
             
@@ -173,10 +177,7 @@ async def start_session(request: SessionStartRequest):
     """
     try:
         # Create session
-        session_id = session_manager.create_session(
-            user_id=request.user_id,
-            use_claude=request.use_claude
-        )
+        session_id = session_manager.create_session(user_id=request.user_id)
         
         # Start conversation immediately
         result = await chat_handler.handle_start_conversation(request.user_id)
@@ -358,6 +359,23 @@ async def cleanup_inactive_sessions(timeout_seconds: int = 3600):
 # Root Endpoint
 # ============================================
 
+@app.get("/api/v1/admin/usage", tags=["Admin"])
+async def get_llm_usage():
+    """Get LLM usage statistics across all providers."""
+    return {"success": True, "usage": router.get_usage_report()}
+
+
+@app.get("/api/v1/admin/tools", tags=["Admin"])
+async def list_tools():
+    """List all registered agent tools."""
+    from src.agents.tools.registry import tool_registry
+    return {
+        "success": True,
+        "count": len(tool_registry),
+        "tools": tool_registry.get_schemas(),
+    }
+
+
 @app.get("/", tags=["System"])
 async def root():
     """
@@ -365,12 +383,14 @@ async def root():
     """
     return {
         "name": "SoulMatch API",
-        "version": "1.0.0",
-        "description": "AI-powered dating app backend",
+        "version": "2.0.0",
+        "description": "AI-powered dating prediction agent with multi-LLM routing and tool calling",
         "endpoints": {
             "health": "/health",
             "docs": "/docs",
-            "websocket": "/ws/{user_id}"
+            "websocket": "/ws/{user_id}",
+            "usage": "/api/v1/admin/usage",
+            "tools": "/api/v1/admin/tools",
         }
     }
 

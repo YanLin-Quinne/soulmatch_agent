@@ -1,68 +1,27 @@
 """Agent modules"""
 
-from src.agents.persona_agent import (
-    PersonaAgent,
-    PersonaAgentPool,
-    create_agent_pool_from_file
-)
-from src.agents.prompt_generator import (
-    ConversationHistory,
-    Message,
-    format_conversation_context,
-    create_greeting_prompt,
-    enhance_prompt_with_context,
-    extract_system_prompt_summary
-)
-from src.agents.emotion_agent import (
-    EmotionAgent,
-    EmotionDetector
-)
-from src.agents.emotion_predictor import (
-    EmotionPredictor,
-    EMOTIONS,
-    EMOTION_TRANSITIONS
-)
-from src.agents.scam_detection_agent import (
-    ScamDetectionAgent,
-    ScamDetector,
-    SemanticScamAnalyzer
-)
-from src.agents.scam_patterns import (
-    ScamPattern,
-    PATTERN_RULES,
-    RISK_THRESHOLDS,
-    WARNING_MESSAGES,
-    get_pattern_description
-)
+from src.agents.llm_router import LLMRouter, router, AgentRole, Provider
+from src.agents.agent_context import AgentContext
+from src.agents.orchestrator import OrchestratorAgent
+from src.agents.persona_agent import PersonaAgent, PersonaAgentPool, create_agent_pool_from_file
+from src.agents.feature_prediction_agent import FeaturePredictionAgent
+from src.agents.emotion_agent import EmotionAgent, EmotionDetector
+from src.agents.scam_detection_agent import ScamDetectionAgent, ScamDetector, SemanticScamAnalyzer
+from src.agents.question_strategy_agent import QuestionStrategyAgent
+from src.agents.reasoning import ChainOfThought, ReActReasoner, ReasoningTrace, cot_reason, react_reason
+from src.agents.prompt_generator import ConversationHistory, Message
+from src.agents.emotion_predictor import EmotionPredictor, EMOTIONS
 
 __all__ = [
-    # Persona Agent
-    "PersonaAgent",
-    "PersonaAgentPool",
-    "create_agent_pool_from_file",
-    
-    # Prompt Utilities
-    "ConversationHistory",
-    "Message",
-    "format_conversation_context",
-    "create_greeting_prompt",
-    "enhance_prompt_with_context",
-    "extract_system_prompt_summary",
-    
-    # Emotion Agent
-    "EmotionAgent",
-    "EmotionDetector",
-    "EmotionPredictor",
-    "EMOTIONS",
-    "EMOTION_TRANSITIONS",
-    
-    # Scam Detection Agent
-    "ScamDetectionAgent",
-    "ScamDetector",
-    "SemanticScamAnalyzer",
-    "ScamPattern",
-    "PATTERN_RULES",
-    "RISK_THRESHOLDS",
-    "WARNING_MESSAGES",
-    "get_pattern_description",
+    "LLMRouter", "router", "AgentRole", "Provider",
+    "AgentContext",
+    "OrchestratorAgent",
+    "PersonaAgent", "PersonaAgentPool", "create_agent_pool_from_file",
+    "FeaturePredictionAgent",
+    "EmotionAgent", "EmotionDetector",
+    "ScamDetectionAgent", "ScamDetector", "SemanticScamAnalyzer",
+    "QuestionStrategyAgent",
+    "ChainOfThought", "ReActReasoner", "ReasoningTrace", "cot_reason", "react_reason",
+    "ConversationHistory", "Message",
+    "EmotionPredictor", "EMOTIONS",
 ]
