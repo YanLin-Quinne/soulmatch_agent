@@ -596,6 +596,12 @@ def get_feature_summary():
 # Build Gradio UI
 # ─────────────────────────────────────────────
 
+DARK_CSS = """
+.gradio-container {
+    background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%) !important;
+}
+"""
+
 def build_app():
     """Build the two-view Gradio app: selection page + chat page"""
     load_bot_pool()
@@ -747,21 +753,11 @@ def build_app():
 # ─────────────────────────────────────────────
 
 if __name__ == "__main__":
-    # Custom dark theme CSS for Gradio components (Gradio 6.x)
-    custom_css = """
-    .gradio-container {
-        background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%) !important;
-    }
-    .dark {
-        background: #0f0f23;
-    }
-    """
-    
     demo = build_app()
     demo.launch(
         server_name="0.0.0.0",
         server_port=7860,
         share=False,
         theme=gr.themes.Base(),
-        css=custom_css,
+        css=DARK_CSS,
     )

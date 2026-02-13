@@ -41,7 +41,7 @@ class PersonaAgent:
         Args:
             persona: PersonaProfile with system_prompt and features
             use_claude: Use Claude API (default) vs OpenAI GPT
-            model_name: Override default model (claude-3-5-sonnet-20241022 or gpt-4o-mini)
+            model_name: Override default model (claude-sonnet-4-20250514 or gpt-4o-mini)
             temperature: Response creativity (0.0-1.0, higher = more creative)
             max_tokens: Maximum response length
         """
@@ -55,7 +55,7 @@ class PersonaAgent:
             if not settings.anthropic_api_key:
                 raise ValueError("ANTHROPIC_API_KEY not configured")
             self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-            self.model = model_name or "claude-3-5-sonnet-20241022"
+            self.model = model_name or "claude-sonnet-4-20250514"
             logger.info(f"PersonaAgent initialized with Claude model: {self.model}")
         else:
             if not OPENAI_AVAILABLE:
@@ -289,9 +289,9 @@ class PersonaAgentPool:
         """Get all agents"""
         return list(self.agents.values())
     
-    def get_agent_summaries(self) -> list[dict]:
-        """Get summaries of all agents"""
-        return [agent.get_persona_summary() for agent in self.agents.values()]
+    def get_agent_summaries(self) -> dict[str, dict]:
+        """Get summaries of all agents, keyed by profile_id"""
+        return {pid: agent.get_persona_summary() for pid, agent in self.agents.items()}
     
     def reset_all_conversations(self):
         """Reset all conversation histories"""

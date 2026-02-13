@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-const API_BASE = 'http://localhost:8000';
 const WS_BASE = 'ws://localhost:8000';
 
-// 15 个角色的展示数据
+// Character display data (matching 8 bot personas)
 interface Character {
   id: string;
   name: string;
@@ -11,39 +10,32 @@ interface Character {
   job: string;
   city: string;
   age: number;
-  status: string;
+  status: 'Chat' | 'Browsing' | 'Online';
 }
 
 const CHARACTERS: Character[] = [
-  { id: 'char_1', name: '王大力', emoji: '⚽', job: '健身教练', city: '长沙', age: 26, status: '来聊天' },
-  { id: 'char_2', name: '张伟', emoji: '💼', job: '产品经理', city: '北京', age: 28, status: '闲逛中' },
-  { id: 'char_3', name: '李思涵', emoji: '📚', job: '社会学研究生', city: '南京', age: 24, status: '来聊天' },
-  { id: 'char_4', name: '刘建国', emoji: '🏛️', job: '某局副局长', city: '济南', age: 52, status: '闲逛中' },
-  { id: 'char_5', name: 'Patricia Chen', emoji: '🌐', job: '外企亚太区VP', city: '上海', age: 45, status: '闲逛中' },
-  { id: 'char_6', name: '赵磊', emoji: '🔧', job: '外卖骑手', city: '深圳', age: 35, status: '来聊天' },
-  { id: 'char_7', name: '老周', emoji: '🍵', job: '中学数学老师', city: '武汉', age: 58, status: '来聊天' },
-  { id: 'char_8', name: 'Helen Wu', emoji: '✈️', job: '退休(前外企CFO)', city: '环游世界中', age: 72, status: '随缘聊' },
-  { id: 'char_9', name: '小K', emoji: '🎮', job: '高中生', city: '广州', age: 17, status: '在线中' },
-  { id: 'char_10', name: '林小雨', emoji: '🌸', job: '大学生', city: '成都', age: 20, status: '随缘聊' },
-  { id: 'char_11', name: '苏曼', emoji: '🧘', job: '瑜伽馆主/心理咨询师', city: '大理', age: 38, status: '随缘聊' },
-  { id: 'char_12', name: '陈美琪', emoji: '🎨', job: '自由插画师', city: '杭州', age: 25, status: '闲逛中' },
-  { id: 'char_13', name: 'Amy', emoji: '🚀', job: '跨境电商创业者', city: '义乌', age: 31, status: '闲逛中' },
-  { id: 'char_14', name: '大卫', emoji: '🎸', job: '酒吧驻唱', city: '厦门', age: 42, status: '闲逛中' },
-  { id: 'char_15', name: '王德明', emoji: '🎵', job: '退休干部', city: '西安', age: 67, status: '在线中' },
+  { id: 'bot_0', name: 'Mina', emoji: '🍳', job: 'Policy Analyst', city: 'San Francisco', age: 29, status: 'Browsing' },
+  { id: 'bot_1', name: 'Jade', emoji: '🎵', job: 'Office Admin', city: 'San Francisco', age: 25, status: 'Chat' },
+  { id: 'bot_2', name: 'Sierra', emoji: '🏔️', job: 'Math Teacher', city: 'Oakland', age: 34, status: 'Browsing' },
+  { id: 'bot_3', name: 'Kevin', emoji: '💻', job: 'Software Dev', city: 'San Francisco', age: 33, status: 'Online' },
+  { id: 'bot_4', name: 'Marcus', emoji: '🎸', job: 'VP Operations', city: 'Castro Valley', age: 33, status: 'Chat' },
+  { id: 'bot_5', name: 'Derek', emoji: '📊', job: 'Financial Analyst', city: 'Oakland', age: 39, status: 'Browsing' },
+  { id: 'bot_6', name: 'Luna', emoji: '🎨', job: 'Freelancer', city: 'Hayward', age: 26, status: 'Chat' },
+  { id: 'bot_7', name: 'Travis', emoji: '✈️', job: 'Sales Director', city: 'San Francisco', age: 42, status: 'Online' },
 ];
 
-// 年龄筛选分组
+// Age filter groups
 interface AgeGroup {
   label: string;
-  range: [number, number] | null;
+  min: number;
+  max: number;
 }
 
 const AGE_GROUPS: AgeGroup[] = [
-  { label: '全部', range: null },
-  { label: '10-20s', range: [10, 29] },
-  { label: '30-40s', range: [30, 49] },
-  { label: '50-60s', range: [50, 69] },
-  { label: '70+', range: [70, 999] },
+  { label: 'All', min: 0, max: 999 },
+  { label: '20s', min: 20, max: 29 },
+  { label: '30s', min: 30, max: 39 },
+  { label: '40+', min: 40, max: 999 },
 ];
 
 interface BotInfo {
@@ -88,13 +80,13 @@ function App() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  // 页面状态
+  // Page state
   const [page, setPage] = useState<'select' | 'chat'>('select');
-  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
-  const [ageFilter, setAgeFilter] = useState<string>('全部');
+  const [selectedChar, setSelectedChar] = useState<Character | null>(null);
+  const [ageFilter, setAgeFilter] = useState<string>('All');
 
-  // 聊天状态
-  const [currentBot, setCurrentBot] = useState<BotInfo | null>(null);
+  // Chat state
+  const [, setCurrentBot] = useState<BotInfo | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -212,9 +204,9 @@ function App() {
     return () => { websocket.close(); };
   }, [connectWebSocket]);
 
-  // 角色选择 - 切换到聊天页面
-  const handleCharacterSelect = (character: Character) => {
-    setSelectedCharacter(character);
+  // Handle card click
+  const handleCardClick = (char: Character) => {
+    setSelectedChar(char);
     setPage('chat');
     setMessages([]);
     setEmotion(null);
@@ -222,12 +214,26 @@ function App() {
     setTurnCount(0);
     setIsTyping(true);
 
+    // Create placeholder bot info
+    const botInfo: BotInfo = {
+      profile_id: char.id,
+      age: char.age,
+      sex: null,
+      location: char.city,
+      communication_style: 'casual',
+      core_values: [],
+      interests: [],
+      relationship_goals: 'unsure',
+      personality_summary: '',
+    };
+    setCurrentBot(botInfo);
+
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'start' }));
     }
   };
 
-  // 发送消息
+  // Send message
   const handleSend = () => {
     if (!inputText.trim() || !ws || ws.readyState !== WebSocket.OPEN) return;
 
@@ -244,10 +250,10 @@ function App() {
     ws.send(JSON.stringify({ action: 'message', content }));
   };
 
-  // 返回角色选择页面
+  // Back to selection page
   const handleBack = () => {
     setPage('select');
-    setSelectedCharacter(null);
+    setSelectedChar(null);
     setCurrentBot(null);
     setMessages([]);
     setEmotion(null);
@@ -256,29 +262,23 @@ function App() {
     setInputText('');
   };
 
-  // 过滤角色
+  // Filter characters
   const filteredCharacters = CHARACTERS.filter(char => {
     const group = AGE_GROUPS.find(g => g.label === ageFilter);
-    if (!group || !group.range) return true;
-    return char.age >= group.range[0] && char.age <= group.range[1];
+    if (!group) return true;
+    return char.age >= group.min && char.age <= group.max;
   });
 
-  // 获取状态标签的 class
-  const getStatusClass = (status: string): string => {
-    if (status === '来聊天' || status === '在线中') return 'tag-status-chat';
-    if (status === '闲逛中') return 'tag-status-idle';
-    if (status === '随缘聊') return 'tag-status-random';
-    return 'tag-status-chat';
-  };
-
   return (
-    <div className="app-container">
+    <div>
       {page === 'select' ? (
-        // 角色选择页面
+        // Character Selection Page
         <div className="select-page">
           <div className="page-header">
+            <h1 className="page-title">SoulMatch</h1>
             <p className="page-description">
-              选择一个人开始聊天。30 句对话后系统将推断对方的性格、心理、社会特征。注意——部分角色是 AI 伪装的。
+              Choose someone to start chatting. After 30 exchanges, the system will predict their personality, psychology, and social traits.<br/>
+              Note — some profiles are AI-powered.
             </p>
           </div>
 
@@ -299,63 +299,62 @@ function App() {
               <div
                 key={char.id}
                 className="character-card"
-                onClick={() => handleCharacterSelect(char)}
+                onClick={() => handleCardClick(char)}
               >
                 <div className="card-emoji">{char.emoji}</div>
                 <div className="card-name">{char.name}</div>
                 <div className="card-job">{char.job} · {char.city}</div>
                 <div className="card-tags">
-                  <span className="tag tag-age">{char.age}岁</span>
+                  <span className="tag tag-age">{char.age}</span>
                   <span className="tag tag-city">{char.city}</span>
-                  <span className={`tag ${getStatusClass(char.status)}`}>{char.status}</span>
+                  <span className={`tag tag-status-${char.status.toLowerCase()}`}>{char.status}</span>
                 </div>
               </div>
             ))}
           </div>
 
           <div className="page-footer">
-            🎭 15人中有10个AI角色，你能分辨吗？
+            🎭 Some of these {CHARACTERS.length} profiles are AI bots — can you tell which?
           </div>
         </div>
       ) : (
-        // 聊天页面
+        // Chat Page
         <div className="chat-page">
           <div className="chat-header">
             <button className="back-btn" onClick={handleBack}>
-              ← 返回
+              ← Back
             </button>
-            {selectedCharacter && (
+            {selectedChar && (
               <div className="chat-bot-info">
-                <span className="chat-bot-emoji">{selectedCharacter.emoji}</span>
+                <span className="chat-bot-emoji">{selectedChar.emoji}</span>
                 <div>
-                  <div className="chat-bot-name">{selectedCharacter.name}</div>
-                  <div className="chat-bot-detail">{selectedCharacter.job} · {selectedCharacter.city}</div>
+                  <div className="chat-bot-name">{selectedChar.name}</div>
+                  <div className="chat-bot-detail">{selectedChar.job} · {selectedChar.city}</div>
                 </div>
               </div>
             )}
-            <div className="turn-count">第 {turnCount} 轮</div>
-            {emotion && (
-              <div className="emotion-badge">
-                {EMOTION_EMOJI[emotion.emotion] || '😐'} {emotion.emotion}
-              </div>
-            )}
+            <div className="chat-header-right">
+              {emotion && (
+                <div className="emotion-badge">
+                  {EMOTION_EMOJI[emotion.emotion] || '😐'} {emotion.emotion}
+                </div>
+              )}
+              <span className="turn-count">Turn: {turnCount}</span>
+            </div>
           </div>
 
           {warning && (
             <div className={`warning-banner ${warning.level}`}>
-              ⚠️ 诈骗警告 ({warning.level}): {warning.message}
-              <span style={{ marginLeft: 8, fontSize: '0.8rem' }}>
-                风险: {(warning.risk_score * 100).toFixed(0)}%
-              </span>
+              ⚠️ Scam Warning ({warning.level}): {warning.message}
             </div>
           )}
 
           <div className="message-list">
-            {messages.length === 0 && !isTyping && (
+            {messages.length === 0 && (
               <div className="empty-state">
                 <div style={{ fontSize: '3rem' }}>💬</div>
-                <h2>开始对话</h2>
-                <p>发送消息开始与 {selectedCharacter?.name} 聊天</p>
+                <h2>Start a conversation</h2>
+                <p>Send a message to begin chatting</p>
               </div>
             )}
             {messages.map(msg => (
@@ -364,10 +363,10 @@ function App() {
               </div>
             ))}
             {isTyping && (
-              <div className="typing-indicator">
-                <div className="typing-dot"></div>
-                <div className="typing-dot"></div>
-                <div className="typing-dot"></div>
+              <div className="message-bubble bot typing-bubble">
+                <span className="typing-dot"></span>
+                <span className="typing-dot"></span>
+                <span className="typing-dot"></span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -379,11 +378,11 @@ function App() {
               value={inputText}
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="输入消息..."
+              placeholder="Type a message..."
               disabled={!isConnected}
             />
-            <button className="send-btn" onClick={handleSend} disabled={!isConnected}>
-              发送
+            <button className="send-btn" onClick={handleSend} disabled={!isConnected || !inputText.trim()}>
+              Send
             </button>
           </div>
         </div>

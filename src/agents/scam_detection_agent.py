@@ -250,7 +250,7 @@ class SemanticScamAnalyzer:
             if not settings.anthropic_api_key:
                 raise ValueError("ANTHROPIC_API_KEY not configured")
             self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-            self.model = model_name or "claude-3-5-haiku-20241022"
+            self.model = model_name or "claude-sonnet-4-20250514"
             logger.info(f"SemanticScamAnalyzer initialized with Claude: {self.model}")
         else:
             if not OPENAI_AVAILABLE:

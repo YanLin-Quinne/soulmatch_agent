@@ -110,7 +110,7 @@ Respond with ONLY the JSON object, no explanation."""
             
             if self.use_claude:
                 response = self.client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
+                    model="claude-sonnet-4-20250514",
                     max_tokens=1024,
                     temperature=0.3,
                     messages=[{

@@ -182,8 +182,17 @@ Remember: You are having a genuine conversation on a dating app. Be yourself (th
         # Initialize extractor
         self.initialize_extractor(use_claude=use_claude)
         
-        # Random sample
-        sampled_profiles = random.sample(profiles, min(num_bots, len(profiles)))
+        # Stratified sample: ensure gender/orientation diversity
+        male = [p for p in profiles if p.sex == 'm']
+        female = [p for p in profiles if p.sex == 'f']
+        
+        # 4 male + 4 female for 8 bots, mix orientations
+        n_per_gender = num_bots // 2
+        sampled_profiles = (
+            random.sample(male, min(n_per_gender, len(male))) +
+            random.sample(female, min(n_per_gender, len(female)))
+        )
+        random.shuffle(sampled_profiles)
         
         personas = []
         for idx, profile in enumerate(sampled_profiles):

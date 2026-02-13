@@ -1,4 +1,4 @@
-/* 基础样式 */
+/* Base Styles */
 * {
   margin: 0;
   padding: 0;
@@ -6,11 +6,10 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: #0b0f1a;
   color: #e2e8f0;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -18,7 +17,6 @@ body {
   min-height: 100vh;
 }
 
-/* 滚动条样式 */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -32,48 +30,46 @@ body {
   border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-
-/* 应用容器 */
-.app-container {
-  width: 100%;
-  min-height: 100vh;
-}
-
-/* ==================== 角色选择页面 ==================== */
+/* ==================== Select Page ==================== */
 
 .select-page {
   min-height: 100vh;
-  padding: 40px 60px;
-  max-width: 1400px;
+  padding: 48px 40px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
 .page-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 8px;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .page-description {
   color: #94a3b8;
   font-size: 15px;
   line-height: 1.8;
-  max-width: 700px;
+  max-width: 680px;
   margin: 0 auto;
 }
 
-/* 年龄筛选按钮组 */
 .age-filter-group {
   display: flex;
   justify-content: center;
   gap: 12px;
-  margin: 32px 0;
+  margin: 32px 0 24px;
 }
 
 .age-filter-btn {
-  padding: 8px 24px;
+  padding: 8px 28px;
   border-radius: 20px;
   border: 1px solid #334155;
   background: transparent;
@@ -81,11 +77,11 @@ body {
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
-  font-family: inherit;
 }
 
 .age-filter-btn:hover {
   border-color: #475569;
+  color: #cbd5e1;
 }
 
 .age-filter-btn.active {
@@ -93,68 +89,62 @@ body {
   color: #3b82f6;
 }
 
-/* 角色卡片网格 */
 .character-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  margin-top: 24px;
 }
 
-@media (max-width: 1200px) {
-  .character-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .character-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 720px) {
   .character-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
-  .select-page {
-    padding: 20px 16px;
+}
+
+@media (max-width: 480px) {
+  .character-grid {
+    grid-template-columns: 1fr;
   }
 }
 
 .character-card {
   background: #1a1f2e;
   border: 1px solid #252b3b;
-  border-radius: 12px;
-  padding: 28px 20px 20px;
+  border-radius: 14px;
+  padding: 28px 16px 20px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.25s;
+  transition: all 0.25s ease;
 }
 
 .character-card:hover {
   border-color: #3b82f6;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12);
 }
 
 .card-emoji {
-  font-size: 42px;
+  font-size: 44px;
   margin-bottom: 14px;
 }
 
 .card-name {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: #f1f5f9;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .card-job {
   font-size: 13px;
   color: #64748b;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .card-tags {
@@ -165,9 +155,10 @@ body {
 }
 
 .tag {
-  padding: 3px 10px;
+  padding: 3px 12px;
   border-radius: 12px;
   font-size: 12px;
+  font-weight: 500;
 }
 
 .tag-age {
@@ -176,7 +167,7 @@ body {
 }
 
 .tag-city {
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(96, 165, 250, 0.15);
   color: #60a5fa;
 }
 
@@ -185,14 +176,9 @@ body {
   color: #c084fc;
 }
 
-.tag-status-idle {
+.tag-status-browsing {
   background: rgba(34, 197, 94, 0.15);
   color: #4ade80;
-}
-
-.tag-status-random {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
 }
 
 .tag-status-online {
@@ -208,12 +194,14 @@ body {
   font-size: 14px;
 }
 
-/* ==================== 聊天页面 ==================== */
+/* ==================== Chat Page ==================== */
 
 .chat-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .chat-header {
@@ -227,34 +215,33 @@ body {
 
 .back-btn {
   background: none;
-  border: none;
+  border: 1px solid #334155;
   color: #94a3b8;
   cursor: pointer;
   font-size: 14px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 8px;
   transition: all 0.2s;
-  font-family: inherit;
 }
 
 .back-btn:hover {
   background: #252b3b;
+  color: #e2e8f0;
 }
 
 .chat-bot-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .chat-bot-emoji {
-  font-size: 24px;
+  font-size: 28px;
 }
 
 .chat-bot-name {
   font-weight: 600;
-  font-size: 16px;
-  color: #f1f5f9;
+  font-size: 15px;
 }
 
 .chat-bot-detail {
@@ -262,8 +249,14 @@ body {
   color: #64748b;
 }
 
-.turn-count {
+.chat-header-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.turn-count {
   font-size: 12px;
   color: #64748b;
 }
@@ -275,7 +268,6 @@ body {
   font-size: 13px;
 }
 
-/* 警告横幅 */
 .warning-banner {
   padding: 10px 20px;
   font-size: 13px;
@@ -295,7 +287,6 @@ body {
   background: #eab308;
 }
 
-/* 消息列表 */
 .message-list {
   flex: 1;
   overflow-y: auto;
@@ -324,6 +315,7 @@ body {
 .message-bubble.bot {
   align-self: flex-start;
   background: #252b3b;
+  color: #e2e8f0;
   border-bottom-left-radius: 4px;
 }
 
@@ -335,20 +327,19 @@ body {
   font-style: italic;
 }
 
-/* 打字指示器 */
-.typing-indicator {
+.typing-bubble {
   display: flex;
-  gap: 4px;
-  padding: 10px 16px;
-  align-self: flex-start;
+  gap: 5px;
+  align-items: center;
+  padding: 14px 18px;
 }
 
 .typing-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   background: #64748b;
   border-radius: 50%;
-  animation: typing 1.2s infinite;
+  animation: typingDot 1.4s infinite ease-in-out;
 }
 
 .typing-dot:nth-child(2) {
@@ -359,16 +350,17 @@ body {
   animation-delay: 0.4s;
 }
 
-@keyframes typing {
+@keyframes typingDot {
   0%, 60%, 100% {
     opacity: 0.3;
+    transform: scale(0.8);
   }
   30% {
     opacity: 1;
+    transform: scale(1);
   }
 }
 
-/* 空状态 */
 .empty-state {
   text-align: center;
   margin: auto;
@@ -376,8 +368,8 @@ body {
 }
 
 .empty-state h2 {
-  font-size: 20px;
   margin: 12px 0 8px;
+  font-size: 1.2rem;
 }
 
 .empty-state p {
@@ -385,7 +377,6 @@ body {
   color: #94a3b8;
 }
 
-/* 输入栏 */
 .input-bar {
   display: flex;
   gap: 10px;
@@ -403,16 +394,11 @@ body {
   color: #e2e8f0;
   font-size: 14px;
   outline: none;
-  font-family: inherit;
   transition: border-color 0.2s;
 }
 
 .input-field:focus {
   border-color: #3b82f6;
-}
-
-.input-field::placeholder {
-  color: #64748b;
 }
 
 .send-btn {
@@ -424,11 +410,10 @@ body {
   font-weight: 600;
   cursor: pointer;
   font-size: 14px;
-  font-family: inherit;
   transition: background 0.2s;
 }
 
-.send-btn:hover:not(:disabled) {
+.send-btn:hover {
   background: #2563eb;
 }
 

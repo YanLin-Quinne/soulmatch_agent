@@ -273,19 +273,8 @@ class OrchestratorAgent:
     def _generate_bot_response(self, user_message: str) -> str:
         """Generate bot response"""
         
-        # Get emotion context
-        emotion_context = None
-        if self.state_machine.context.current_user_emotion:
-            emotion_result = self.emotion_agent.suggest_reply_strategy(
-                self.state_machine.context.current_user_emotion
-            )
-            emotion_context = emotion_result.get("approach", "")
-        
-        # Generate response
-        response = self.current_bot.generate_response(
-            user_message=user_message,
-            emotion_hint=emotion_context
-        )
+        # Generate response (PersonaAgent.generate_response takes message + optional history)
+        response = self.current_bot.generate_response(message=user_message)
         
         return response
     

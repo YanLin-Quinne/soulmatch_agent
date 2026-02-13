@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     chroma_db_path: str = "./chroma_db"
     
     # Training Configuration
-    model_name: str = "Qwen/Qwen2.5-0.5B"
+    model_name: str = "Qwen/Qwen3-0.6B"
     device: Literal["cpu", "cuda", "mps"] = "mps"
     batch_size: int = 4
     learning_rate: float = 2e-5

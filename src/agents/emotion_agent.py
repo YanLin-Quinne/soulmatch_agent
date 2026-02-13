@@ -49,7 +49,7 @@ class EmotionDetector:
         
         Args:
             use_claude: Use Claude API (Haiku for speed/cost) vs OpenAI
-            model_name: Override default model (claude-3-5-haiku-20241022 or gpt-4o-mini)
+            model_name: Override default model (claude-sonnet-4-20250514 or gpt-4o-mini)
             temperature: Lower = more consistent (0.3 recommended for classification)
         """
         self.use_claude = use_claude and ANTHROPIC_AVAILABLE
@@ -61,7 +61,7 @@ class EmotionDetector:
                 raise ValueError("ANTHROPIC_API_KEY not configured")
             self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
             # Use Haiku for fast, cheap emotion detection
-            self.model = model_name or "claude-3-5-haiku-20241022"
+            self.model = model_name or "claude-sonnet-4-20250514"
             logger.info(f"EmotionDetector initialized with Claude model: {self.model}")
         else:
             if not OPENAI_AVAILABLE:
