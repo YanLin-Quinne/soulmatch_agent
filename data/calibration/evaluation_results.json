@@ -1,0 +1,33 @@
+{
+  "marginal_coverage": 1.0,
+  "avg_set_size": 2.320156695156695,
+  "per_dim_coverage": {
+    "sex": 1.0,
+    "orientation": 1.0,
+    "age": 1.0,
+    "communication_style": 1.0,
+    "relationship_goals": 1.0,
+    "big_five_openness": 1.0,
+    "big_five_conscientiousness": 1.0,
+    "big_five_extraversion": 1.0,
+    "big_five_agreeableness": 1.0,
+    "big_five_neuroticism": 1.0,
+    "interest_music": 1.0,
+    "interest_sports": 1.0,
+    "interest_travel": 1.0,
+    "interest_food": 1.0,
+    "interest_arts": 1.0,
+    "interest_tech": 1.0,
+    "interest_outdoors": 1.0,
+    "interest_books": 1.0
+  },
+  "per_turn_coverage": {
+    "(1, 5)": 1.0,
+    "(6, 10)": 1.0,
+    "(11, 15)": 1.0,
+    "(16, 20)": 1.0
+  },
+  "ece_llm": 0.0999,
+  "n_test_samples": 2808,
+  "target_coverage": 0.9
+}
