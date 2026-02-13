@@ -1,13 +1,19 @@
-"""Training modules — SFT cold start + GRPO reinforcement learning."""
+"""Training module — lazy imports to avoid CUDA/bitsandbytes issues"""
 
-from src.training.conversation_simulator import ConversationSimulator
-from src.training.synthetic_dialogue_generator import SyntheticDialogueGenerator, create_synthetic_dataset
-from src.training.sft_trainer import train_sft, FeaturePredictionDataset, MemorySummarizationDataset
-from src.training.rl_trainer import train_rl, feature_prediction_reward
+from src.training.synthetic_dialogue_generator import (
+    SyntheticDialogueGenerator,
+    create_synthetic_dataset,
+)
 
-__all__ = [
-    "ConversationSimulator",
-    "SyntheticDialogueGenerator", "create_synthetic_dataset",
-    "train_sft", "FeaturePredictionDataset", "MemorySummarizationDataset",
-    "train_rl", "feature_prediction_reward",
-]
+# Heavy imports (trl, torch) are lazy — only imported when actually used
+def train_sft(**kwargs):
+    from src.training.sft_trainer import train_sft as _train_sft
+    return _train_sft(**kwargs)
+
+def train_rl(**kwargs):
+    from src.training.rl_trainer import train_rl as _train_rl
+    return _train_rl(**kwargs)
+
+def feature_prediction_reward(*args, **kwargs):
+    from src.training.rl_trainer import feature_prediction_reward as _fpr
+    return _fpr(*args, **kwargs)

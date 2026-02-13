@@ -1,6 +1,7 @@
 """Agent modules"""
 
 from src.agents.llm_router import LLMRouter, router, AgentRole, Provider
+from src.agents.conformal_calibrator import ConformalCalibrator, ConformalResult
 from src.agents.agent_context import AgentContext
 from src.agents.orchestrator import OrchestratorAgent
 from src.agents.persona_agent import PersonaAgent, PersonaAgentPool, create_agent_pool_from_file

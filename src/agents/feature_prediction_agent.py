@@ -1,24 +1,30 @@
-"""Feature Prediction Agent — infer user traits with Bayesian updates + confidence convergence + CoT reasoning."""
+"""Feature Prediction Agent — infer user traits with Bayesian updates + conformal prediction + CoT reasoning."""
 
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from loguru import logger
 
 from src.agents.bayesian_updater import BayesianFeatureUpdater
 from src.agents.llm_router import router, AgentRole
 from src.agents.reasoning import ChainOfThought, ReasoningTrace
+from src.agents.conformal_calibrator import (
+    ConformalCalibrator, ConformalResult, discretize_value, get_options,
+    CATEGORICAL_DIMS, CONTINUOUS_BINS, ALL_DIMS,
+)
 
 
 # Confidence threshold: stop LLM extraction when average confidence exceeds this
 CONVERGENCE_THRESHOLD = 0.80
 # Minimum information gain to justify an LLM call
 MIN_INFO_GAIN = 0.02
+# Default calibrator path (fitted offline)
+DEFAULT_CALIBRATOR_PATH = "data/calibration/conformal_calibrator.json"
 
 
 class FeaturePredictionAgent:
-    """Predicts user features from conversation, using confidence-based stopping."""
+    """Predicts user features from conversation, using confidence-based stopping + conformal prediction."""
 
-    def __init__(self, user_id: str, use_cot: bool = True):
+    def __init__(self, user_id: str, use_cot: bool = True, calibrator_path: Optional[str] = None):
         self.user_id = user_id
         self.bayesian_updater = BayesianFeatureUpdater()
         self.predicted_features: Dict[str, any] = {}
@@ -26,6 +32,25 @@ class FeaturePredictionAgent:
         self.conversation_count = 0
         self.use_cot = use_cot
         self.last_reasoning_trace: Optional[ReasoningTrace] = None
+
+        # Conformal prediction calibrator
+        self.conformal: Optional[ConformalCalibrator] = None
+        self.last_conformal_result: Optional[ConformalResult] = None
+        self._load_calibrator(calibrator_path or DEFAULT_CALIBRATOR_PATH)
+
+    def _load_calibrator(self, path: str):
+        """Load pre-fitted conformal calibrator if available."""
+        try:
+            from pathlib import Path
+            if Path(path).exists():
+                self.conformal = ConformalCalibrator()
+                self.conformal.load(path)
+                logger.info(f"Conformal calibrator loaded from {path}")
+            else:
+                logger.info("No conformal calibrator found — using LLM confidence only")
+        except Exception as e:
+            logger.warning(f"Failed to load conformal calibrator: {e}")
+            self.conformal = None
 
     def predict_from_conversation(self, conversation_history: List[dict]) -> Dict[str, any]:
         """Extract and update features from conversation history."""
@@ -46,6 +71,19 @@ class FeaturePredictionAgent:
         updated_f, updated_c = self._update_features(new_obs)
         self.predicted_features = updated_f
         self.feature_confidences = updated_c
+
+        # ── Conformal Prediction: calibrate confidence scores ──────────
+        if self.conformal and self.conformal.is_fitted:
+            self.last_conformal_result = self.conformal.calibrate(
+                predictions=self.predicted_features,
+                llm_confidences=self.feature_confidences,
+                turn=self.conversation_count,
+            )
+            logger.info(
+                f"Conformal: turn={self.conversation_count}, "
+                f"avg_set_size={self.last_conformal_result.avg_set_size:.2f}, "
+                f"singletons={self.last_conformal_result.n_singleton}/{self.last_conformal_result.n_dimensions}"
+            )
 
         logger.info(f"Feature update turn={self.conversation_count}, avg_conf={self._compute_overall_confidence():.2f}")
         return self._result()
@@ -257,13 +295,33 @@ Guidelines:
         return updated_f, updated_c
 
     def _result(self) -> Dict[str, any]:
-        return {
+        result = {
             "features": self.predicted_features,
             "confidences": self.feature_confidences,
             "turn": self.conversation_count,
             "low_confidence": self._low_confidence_features(),
             "average_confidence": self._compute_overall_confidence(),
         }
+        # Attach conformal prediction results if available
+        if self.last_conformal_result:
+            cr = self.last_conformal_result
+            result["conformal"] = {
+                "coverage_guarantee": cr.coverage_level,
+                "avg_set_size": round(cr.avg_set_size, 2),
+                "singletons": cr.n_singleton,
+                "total_dims": cr.n_dimensions,
+                "prediction_sets": {
+                    dim: {
+                        "set": ps.prediction_set,
+                        "point": ps.point_prediction,
+                        "size": ps.set_size,
+                        "llm_conf": round(ps.llm_confidence, 3),
+                        "calibrated_conf": round(ps.calibrated_confidence, 3),
+                    }
+                    for dim, ps in cr.prediction_sets.items()
+                },
+            }
+        return result
 
     def _low_confidence_features(self, threshold: float = 0.5) -> List[str]:
         """Return feature keys with confidence below threshold."""
@@ -295,4 +353,21 @@ Guidelines:
             k = f"interest_{interest}"
             if k in self.predicted_features:
                 summary["interests"][interest] = {"value": self.predicted_features[k], "confidence": self.feature_confidences.get(k, 0.0)}
+
+        # Conformal prediction summary
+        if self.last_conformal_result:
+            cr = self.last_conformal_result
+            summary["conformal"] = {
+                "coverage_guarantee": cr.coverage_level,
+                "avg_set_size": round(cr.avg_set_size, 2),
+                "singletons": cr.n_singleton,
+                "total_dims": cr.n_dimensions,
+                "determined_features": [
+                    dim for dim, ps in cr.prediction_sets.items() if ps.set_size == 1
+                ],
+                "uncertain_features": [
+                    dim for dim, ps in cr.prediction_sets.items() if ps.set_size > 2
+                ],
+            }
+
         return summary
