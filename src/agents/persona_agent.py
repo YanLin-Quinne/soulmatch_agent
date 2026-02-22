@@ -88,8 +88,11 @@ class PersonaAgent:
         """Generate an opening message."""
         prompt = (
             "Generate a warm, natural first message to start a conversation on a dating app. "
-            "Be authentic, show your personality, and keep it casual (2-3 sentences max). "
-            "Don't ask generic questions."
+            "Be authentic, show your personality, and keep it casual (1-2 sentences max). "
+            "Don't use placeholders like [Name] or [User]. "
+            "Don't mention specific cities or locations. "
+            "Don't ask generic questions. "
+            "Just be yourself and make it feel human, not like a template."
         )
         try:
             text = router.chat(
@@ -99,6 +102,9 @@ class PersonaAgent:
                 temperature=0.9,
                 max_tokens=150,
             )
+            # Remove any remaining placeholders
+            text = text.replace("[Name]", "").replace("[name]", "").replace("[USER]", "").replace("[User]", "")
+            text = text.strip()
             logger.info(f"[{self.persona.profile_id}] Generated greeting")
             return text
         except Exception as e:
