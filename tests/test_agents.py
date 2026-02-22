@@ -17,30 +17,34 @@ from src.memory.memory_manager import MemoryManager
 
 class TestEmotionAgent:
     """Test EmotionAgent functionality"""
-    
+
     @pytest.fixture
     def emotion_agent(self):
-        agent = EmotionAgent(use_claude=False)
+        agent = EmotionAgent()
         return agent
-    
-    def test_emotion_detection_fallback(self, emotion_agent):
-        """Test keyword-based fallback emotion detection"""
-        
-        # Test joy
-        result = emotion_agent._detect_emotion_from_keywords("I'm so happy and excited!")
-        assert result["emotion"] == "joy"
-        
-        # Test sadness
-        result = emotion_agent._detect_emotion_from_keywords("I feel sad and lonely")
-        assert result["emotion"] == "sadness"
-        
-        # Test anger
-        result = emotion_agent._detect_emotion_from_keywords("I'm so angry and frustrated!")
-        assert result["emotion"] == "anger"
-        
-        # Test neutral
-        result = emotion_agent._detect_emotion_from_keywords("The weather is normal today")
-        assert result["emotion"] == "neutral"
+
+    def test_emotion_detection(self, emotion_agent):
+        """Test emotion analysis with mocked detector"""
+        with patch.object(emotion_agent.detector, 'detect_emotion') as mock_detect:
+            # Test joy
+            mock_detect.return_value = {"emotion": "joy", "confidence": 0.9, "intensity": 0.8, "reasoning": "test"}
+            result = emotion_agent.analyze_message("I'm so happy and excited!")
+            assert result["current_emotion"]["emotion"] == "joy"
+
+            # Test sadness
+            mock_detect.return_value = {"emotion": "sadness", "confidence": 0.8, "intensity": 0.7, "reasoning": "test"}
+            result = emotion_agent.analyze_message("I feel sad and lonely")
+            assert result["current_emotion"]["emotion"] == "sadness"
+
+            # Test anger
+            mock_detect.return_value = {"emotion": "anger", "confidence": 0.85, "intensity": 0.8, "reasoning": "test"}
+            result = emotion_agent.analyze_message("I'm so angry and frustrated!")
+            assert result["current_emotion"]["emotion"] == "anger"
+
+            # Test neutral
+            mock_detect.return_value = {"emotion": "neutral", "confidence": 0.5, "intensity": 0.3, "reasoning": "test"}
+            result = emotion_agent.analyze_message("The weather is normal today")
+            assert result["current_emotion"]["emotion"] == "neutral"
 
 
 class TestScamDetectionAgent:

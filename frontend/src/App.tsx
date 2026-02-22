@@ -130,6 +130,9 @@ function App() {
   const [trustHistory, setTrustHistory] = useState<{ turn: number; trust: number }[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isUnmountedRef = useRef(false);
 
   // Theme effect
   useEffect(() => {
@@ -144,12 +147,24 @@ function App() {
   const connectWebSocket = useCallback(() => {
     const websocket = new WebSocket(`${WS_BASE}/ws/${userId.current}`);
 
-    websocket.onopen = () => setIsConnected(true);
+    websocket.onopen = () => {
+      setIsConnected(true);
+      // Start ping heartbeat every 20s
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = setInterval(() => {
+        if (websocket.readyState === WebSocket.OPEN) {
+          websocket.send(JSON.stringify({ action: 'ping' }));
+        }
+      }, 20000);
+    };
 
     websocket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       switch (data.type) {
         case 'welcome':
+          break;
+        case 'heartbeat':
+        case 'pong':
           break;
         case 'conversation_started':
           setIsTyping(false);
@@ -227,14 +242,31 @@ function App() {
     };
 
     websocket.onerror = () => setIsConnected(false);
-    websocket.onclose = () => setIsConnected(false);
+    websocket.onclose = () => {
+      setIsConnected(false);
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
+      }
+      if (!isUnmountedRef.current) {
+        reconnectTimerRef.current = setTimeout(() => {
+          connectWebSocket();
+        }, 2000);
+      }
+    };
     setWs(websocket);
     return websocket;
   }, []);
 
   useEffect(() => {
+    isUnmountedRef.current = false;
     const websocket = connectWebSocket();
-    return () => { websocket.close(); };
+    return () => {
+      isUnmountedRef.current = true;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+      websocket.close();
+    };
   }, [connectWebSocket]);
 
   const handleCardClick = (char: Character) => {

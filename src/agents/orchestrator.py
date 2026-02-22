@@ -61,6 +61,7 @@ class OrchestratorAgent:
         register_builtin_skills()
 
         self.ctx = AgentContext(user_id=user_id)
+        self._pending_relationship_turn = False
 
         logger.info(f"Orchestrator initialized for user {user_id}")
 
@@ -152,90 +153,93 @@ class OrchestratorAgent:
         response: Dict[str, Any] = {"success": True, "turn": self.ctx.turn_count}
 
         # --- Phase 1: parallel independent analyses ---
-        self._run_parallel_analyses(message, actions)
+        try:
+            self._run_parallel_analyses(message, actions)
+        except Exception as e:
+            logger.error(f"[Orchestrator] Parallel analyses failed: {e}")
 
         # --- Phase 2: feature update (benefits from emotion) ---
         if "feature_update" in actions:
-            result = self._update_features()
-            response["feature_update"] = result
-            self.state_machine.handle_feature_updated()
+            try:
+                result = self._update_features()
+                response["feature_update"] = result
+                self.state_machine.handle_feature_updated()
+            except Exception as e:
+                logger.error(f"[Orchestrator] Feature update failed: {e}")
 
             # v2.0: Feature transition prediction (every 3 turns)
             if self.ctx.turn_count % 3 == 0:
-                emotion_trend = self._compute_emotion_trend()
-                transition_pred = self.feature_transition_predictor.predict_next(
-                    current_features=self.ctx.predicted_features,
-                    emotion_trend=emotion_trend,
-                    relationship_status=self.ctx.rel_status,
-                    memory_trigger=("memory_update" in actions),
-                )
-                self.ctx.predicted_feature_changes = transition_pred
-                response["feature_transition"] = {
-                    "likely_to_change": transition_pred["likely_to_change"],
-                    "change_probability": transition_pred["change_probability"],
-                }
+                try:
+                    emotion_trend = self._compute_emotion_trend()
+                    transition_pred = self.feature_transition_predictor.predict_next(
+                        current_features=self.ctx.predicted_features,
+                        emotion_trend=emotion_trend,
+                        relationship_status=self.ctx.rel_status,
+                        memory_trigger=("memory_update" in actions),
+                    )
+                    self.ctx.predicted_feature_changes = transition_pred
+                    response["feature_transition"] = {
+                        "likely_to_change": transition_pred["likely_to_change"],
+                        "change_probability": transition_pred["change_probability"],
+                    }
+                except Exception as e:
+                    logger.error(f"[Orchestrator] Feature transition prediction failed: {e}")
 
-        # --- Phase 2.5: Relationship prediction (every 5 turns + milestones) ---
-        if self.ctx.turn_count % 5 == 0 or self.ctx.turn_count in [10, 30]:
-            rel_result = await self.relationship_agent.execute(self.ctx)
-            if rel_result:
-                response["relationship_prediction"] = {
-                    "rel_status": rel_result.get("rel_status"),
-                    "rel_type": rel_result.get("rel_type"),
-                    "sentiment": rel_result.get("sentiment"),
-                    "can_advance": rel_result.get("can_advance"),
-                    "advance_prediction_set": rel_result.get("advance_prediction_set"),
-                }
-                # Update extended features
-                self.ctx.extended_features["trust_score"] = self.ctx.extended_features.get("trust_score", 0.5)
-                self.ctx.extended_features["relationship_status"] = rel_result.get("rel_status")
-                self.ctx.extended_features["sentiment_label"] = rel_result.get("sentiment")
-
-        # --- Phase 2.6: Milestone evaluation (turn 10/30) ---
-        if self.ctx.turn_count in [10, 30]:
-            milestone_report = self.milestone_evaluator.evaluate(
-                turn=self.ctx.turn_count,
-                feature_history=self.ctx.feature_history,
-                relationship_snapshots=self.ctx.relationship_snapshots,
-                current_features=self.ctx.predicted_features,
-            )
-            if milestone_report:
-                self.ctx.milestone_reports[self.ctx.turn_count] = milestone_report
-                response["milestone_report"] = milestone_report
+        # --- Phase 2.5: Relationship prediction (deferred to background) ---
+        self._pending_relationship_turn = (
+            self.ctx.turn_count % 5 == 0 or self.ctx.turn_count in [10, 30]
+        )
 
         # --- Phase 3: question strategy (needs features) ---
-        self._update_question_strategy()
+        try:
+            self._update_question_strategy()
+        except Exception as e:
+            logger.error(f"[Orchestrator] Question strategy update failed: {e}")
 
         # --- Phase 3.3: skill matching ---
-        skill_results = skill_registry.execute_matched(message, self.ctx)
-        if skill_results:
-            self.ctx.active_skills = [r.skill_name for r in skill_results]
-            self.ctx.skill_prompt_additions = [r.prompt_addition for r in skill_results if r.prompt_addition]
-            response["skills"] = self.ctx.active_skills
+        try:
+            skill_results = skill_registry.execute_matched(message, self.ctx)
+            if skill_results:
+                self.ctx.active_skills = [r.skill_name for r in skill_results]
+                self.ctx.skill_prompt_additions = [r.prompt_addition for r in skill_results if r.prompt_addition]
+                response["skills"] = self.ctx.active_skills
+        except Exception as e:
+            logger.error(f"[Orchestrator] Skill matching failed: {e}")
 
         # --- Phase 3.5: dynamic discussion (needs all context) ---
-        if self.discussion_engine.should_trigger(self.ctx):
-            disc = self.discussion_engine.run_discussion(self.ctx)
-            self.ctx.discussion_synthesis = disc.synthesis
-            response["discussion"] = {
-                "triggered": True,
-                "perspectives": len(disc.perspectives),
-                "synthesis_preview": disc.synthesis[:120] + "..." if len(disc.synthesis) > 120 else disc.synthesis,
-            }
+        try:
+            if self.discussion_engine.should_trigger(self.ctx):
+                disc = self.discussion_engine.run_discussion(self.ctx)
+                self.ctx.discussion_synthesis = disc.synthesis
+                response["discussion"] = {
+                    "triggered": True,
+                    "perspectives": len(disc.perspectives),
+                    "synthesis_preview": disc.synthesis[:120] + "..." if len(disc.synthesis) > 120 else disc.synthesis,
+                }
+        except Exception as e:
+            logger.error(f"[Orchestrator] Discussion engine failed: {e}")
 
         # --- Phase 4: bot response (needs everything) ---
         if "bot_response" in actions:
-            bot_text = self._generate_bot_response()
-            response["bot_message"] = bot_text
-            self.ctx.add_to_history("bot", bot_text)
-            self.memory_manager.add_conversation_turn("bot", bot_text)
-            self.state_machine.handle_bot_message()
+            try:
+                bot_text = self._generate_bot_response()
+                response["bot_message"] = bot_text
+                self.ctx.add_to_history("bot", bot_text)
+                self.memory_manager.add_conversation_turn("bot", bot_text)
+                self.state_machine.handle_bot_message()
+            except Exception as e:
+                logger.error(f"[Orchestrator] Bot response generation failed: {e}")
+                response["bot_message"] = "Sorry, I'm having a moment. Could you say that again?"
+                response["error_hint"] = "bot_response_failed"
 
         # --- Phase 5: memory store ---
         if "memory_update" in actions:
-            mem_result = self._update_memory()
-            response["memory_update"] = mem_result
-            self.state_machine.handle_memory_updated()
+            try:
+                mem_result = self._update_memory()
+                response["memory_update"] = mem_result
+                self.state_machine.handle_memory_updated()
+            except Exception as e:
+                logger.error(f"[Orchestrator] Memory update failed: {e}")
 
         # Scam / emotion in response
         if self.ctx.scam_warning_level != "none":
@@ -260,6 +264,45 @@ class OrchestratorAgent:
             "avg_feature_confidence": self.feature_agent._compute_overall_confidence(),
         }
         return response
+
+    async def run_relationship_prediction(self) -> Dict[str, Any]:
+        """Run relationship prediction + milestone as background task."""
+        result = {}
+        if not self._pending_relationship_turn:
+            return result
+
+        try:
+            rel_result = await self.relationship_agent.execute(self.ctx)
+            if rel_result:
+                result["relationship_prediction"] = {
+                    "rel_status": rel_result.get("rel_status"),
+                    "rel_type": rel_result.get("rel_type"),
+                    "sentiment": rel_result.get("sentiment"),
+                    "can_advance": rel_result.get("can_advance"),
+                    "advance_prediction_set": rel_result.get("advance_prediction_set"),
+                }
+                self.ctx.extended_features["trust_score"] = self.ctx.extended_features.get("trust_score", 0.5)
+                self.ctx.extended_features["relationship_status"] = rel_result.get("rel_status")
+                self.ctx.extended_features["sentiment_label"] = rel_result.get("sentiment")
+        except Exception as e:
+            logger.error(f"[Orchestrator] Relationship prediction failed at turn {self.ctx.turn_count}: {e}")
+
+        if self.ctx.turn_count in [10, 30]:
+            try:
+                milestone_report = self.milestone_evaluator.evaluate(
+                    turn=self.ctx.turn_count,
+                    feature_history=self.ctx.feature_history,
+                    relationship_snapshots=self.ctx.relationship_snapshots,
+                    current_features=self.ctx.predicted_features,
+                )
+                if milestone_report:
+                    self.ctx.milestone_reports[self.ctx.turn_count] = milestone_report
+                    result["milestone_report"] = milestone_report
+            except Exception as e:
+                logger.error(f"[Orchestrator] Milestone evaluation failed at turn {self.ctx.turn_count}: {e}")
+
+        self._pending_relationship_turn = False
+        return result
 
     # ------------------------------------------------------------------
     # Pipeline helpers

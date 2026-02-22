@@ -1,7 +1,7 @@
 """API tests (requires backend running)"""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import sys
 from pathlib import Path
 
@@ -12,132 +12,116 @@ sys.path.insert(0, str(project_root))
 
 class TestSessionManager:
     """Test session management"""
-    
+
     @pytest.fixture
     def session_manager(self):
         """Create session manager with mocked dependencies"""
-        
-        with patch('src.api.session_manager.ChromaDBClient'):
-            with patch('src.api.session_manager.OrchestratorAgent'):
-                from src.api.session_manager import SessionManager
-                
-                # Reset singleton
-                SessionManager._instance = None
-                SessionManager._lock = __import__('threading').Lock()
-                
-                manager = SessionManager.get_instance()
-                
-                # Mock bot pool
-                manager.bot_pool = MagicMock()
-                
-                return manager
-    
-    def test_singleton_pattern(self):
-        """Test SessionManager is singleton"""
-        
-        with patch('src.api.session_manager.ChromaDBClient'):
+        with patch('src.api.session_manager.OrchestratorAgent'):
             from src.api.session_manager import SessionManager
-            
+
             # Reset singleton
             SessionManager._instance = None
             SessionManager._lock = __import__('threading').Lock()
-            
-            manager1 = SessionManager.get_instance()
-            manager2 = SessionManager.get_instance()
-            
+
+            manager = SessionManager()
+            manager.bot_personas_pool = MagicMock()
+
+            return manager
+
+    def test_singleton_pattern(self):
+        """Test SessionManager is singleton"""
+        with patch('src.api.session_manager.OrchestratorAgent'):
+            from src.api.session_manager import SessionManager
+
+            # Reset singleton
+            SessionManager._instance = None
+            SessionManager._lock = __import__('threading').Lock()
+
+            manager1 = SessionManager()
+            manager2 = SessionManager()
+
             assert manager1 is manager2
-    
+
     def test_create_session(self, session_manager):
         """Test session creation"""
-        
         session_id = session_manager.create_session("user_123")
-        
+
         assert session_id is not None
-        assert session_id.startswith("user_123_")
-    
+        assert session_id == "user_123"
+
     def test_get_session(self, session_manager):
         """Test getting existing session"""
-        
         session_id = session_manager.create_session("user_456")
         orchestrator = session_manager.get_session(session_id)
-        
+
         assert orchestrator is not None
-    
+
     def test_delete_session(self, session_manager):
         """Test session deletion"""
-        
         session_id = session_manager.create_session("user_789")
         session_manager.delete_session(session_id)
-        
+
         orchestrator = session_manager.get_session(session_id)
         assert orchestrator is None
 
 
+@pytest.mark.asyncio
 class TestChatHandler:
     """Test chat handler logic"""
-    
+
     @pytest.fixture
     def chat_handler(self):
         """Create chat handler with mocked dependencies"""
-        
-        with patch('src.api.chat_handler.SessionManager'):
-            from src.api.chat_handler import ChatHandler
-            
-            handler = ChatHandler()
-            
-            # Mock session manager
-            mock_session_manager = MagicMock()
-            mock_orchestrator = MagicMock()
-            mock_session_manager.get_session.return_value = mock_orchestrator
-            
-            handler.session_manager = mock_session_manager
-            
-            return handler, mock_orchestrator
-    
-    def test_handle_start_conversation_success(self, chat_handler):
+        from src.api.chat_handler import ChatHandler
+
+        handler = ChatHandler()
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.process_user_message = AsyncMock()
+
+        return handler, mock_orchestrator
+
+    async def test_handle_start_conversation_success(self, chat_handler):
         """Test starting conversation successfully"""
-        
         handler, mock_orchestrator = chat_handler
-        
-        # Mock orchestrator response
+
         mock_orchestrator.start_new_conversation.return_value = {
             "success": True,
             "bot_id": "bot_0",
             "greeting": "Hello!"
         }
-        
-        result = handler.handle_start_conversation("session_123")
-        
+
+        with patch('src.api.chat_handler.session_manager') as mock_sm:
+            mock_sm.get_session.return_value = mock_orchestrator
+            result = await handler.handle_start_conversation("session_123")
+
         assert result["success"] is True
         assert "bot_id" in result
-    
-    def test_handle_user_message_success(self, chat_handler):
+
+    async def test_handle_user_message_success(self, chat_handler):
         """Test handling user message successfully"""
-        
         handler, mock_orchestrator = chat_handler
-        
-        # Mock orchestrator response
+
         mock_orchestrator.process_user_message.return_value = {
             "success": True,
             "bot_message": "Nice to meet you!",
             "emotion": {"current_emotion": {"emotion": "joy"}}
         }
-        
-        result = handler.handle_user_message("session_123", "Hi there!")
-        
+
+        with patch('src.api.chat_handler.session_manager') as mock_sm:
+            mock_sm.get_session.return_value = mock_orchestrator
+            result = await handler.handle_user_message("session_123", "Hi there!")
+
         assert result["success"] is True
         assert "bot_message" in result
-    
-    def test_handle_no_session(self, chat_handler):
+
+    async def test_handle_no_session(self, chat_handler):
         """Test handling request with no session"""
-        
-        handler, mock_orchestrator = chat_handler
-        
-        # Mock session not found
-        handler.session_manager.get_session.return_value = None
-        
-        result = handler.handle_user_message("invalid_session", "Hello")
-        
+        handler, _ = chat_handler
+
+        with patch('src.api.chat_handler.session_manager') as mock_sm:
+            mock_sm.get_session.return_value = None
+            result = await handler.handle_user_message("invalid_session", "Hello")
+
         assert result["success"] is False
         assert "error" in result
 

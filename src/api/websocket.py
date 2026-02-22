@@ -1,5 +1,6 @@
 """WebSocket endpoint for real-time chat"""
 
+import asyncio
 import json
 from typing import Dict, Any
 from fastapi import WebSocket, WebSocketDisconnect
@@ -45,6 +46,37 @@ class ConnectionManager:
 
 # Global connection manager
 manager = ConnectionManager()
+
+
+async def _send_heartbeat(user_id: str):
+    """Send heartbeat every 5s to keep WebSocket alive during long processing."""
+    try:
+        while True:
+            await asyncio.sleep(5)
+            await manager.send_message(user_id, {"type": "heartbeat"})
+    except asyncio.CancelledError:
+        pass
+
+
+async def _run_background_prediction(user_id: str):
+    """Run relationship prediction in background and send results via WebSocket."""
+    try:
+        orchestrator = session_manager.get_session(user_id)
+        if not orchestrator:
+            return
+        result = await orchestrator.run_relationship_prediction()
+        if result.get("relationship_prediction"):
+            await manager.send_message(user_id, {
+                "type": "relationship_prediction",
+                "data": result["relationship_prediction"]
+            })
+        if result.get("milestone_report"):
+            await manager.send_message(user_id, {
+                "type": "milestone_report",
+                "data": result["milestone_report"]
+            })
+    except Exception as e:
+        logger.error(f"Background relationship prediction failed for {user_id}: {e}")
 
 
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
@@ -139,19 +171,27 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         "message": result.get("error", "Failed to start conversation")
                     })
             
+            elif action == "ping":
+                await manager.send_message(user_id, {"type": "pong"})
+
             elif action == "message":
                 # Process user message
                 content = message.get("content", "").strip()
-                
+
                 if not content:
                     await manager.send_message(user_id, {
                         "type": "error",
                         "message": "Message content cannot be empty"
                     })
                     continue
-                
-                result = await chat_handler.handle_user_message(user_id, content)
-                
+
+                # Start heartbeat to keep connection alive during processing
+                heartbeat_task = asyncio.create_task(_send_heartbeat(user_id))
+                try:
+                    result = await chat_handler.handle_user_message(user_id, content)
+                finally:
+                    heartbeat_task.cancel()
+
                 if result.get("success"):
                     # Send bot response
                     if "bot_message" in result:
@@ -160,14 +200,14 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                             "message": result["bot_message"],
                             "turn": result.get("turn")
                         })
-                    
+
                     # Send emotion analysis if available
                     if "emotion" in result:
                         await manager.send_message(user_id, {
                             "type": "emotion",
                             "data": result["emotion"]
                         })
-                    
+
                     # Send scam warning if detected
                     if "scam_detection" in result:
                         scam_data = result["scam_detection"]
@@ -180,27 +220,32 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                                     "risk_score": scam_data.get("risk_score")
                                 }
                             })
-                    
+
                     # Send feature update notification
                     if "feature_update" in result:
                         await manager.send_message(user_id, {
                             "type": "feature_update",
                             "data": result["feature_update"]
                         })
-                    
+
                     # Send context
                     if "context" in result:
                         await manager.send_message(user_id, {
                             "type": "context",
                             "data": result["context"]
                         })
-                    
+
                     # Send warning message if present
                     if "warning" in result:
                         await manager.send_message(user_id, {
                             "type": "system_warning",
                             "message": result["warning"]
                         })
+
+                    # Fire background relationship prediction if needed
+                    orchestrator = session_manager.get_session(user_id)
+                    if orchestrator and getattr(orchestrator, '_pending_relationship_turn', False):
+                        asyncio.create_task(_run_background_prediction(user_id))
                 else:
                     await manager.send_message(user_id, {
                         "type": "error",

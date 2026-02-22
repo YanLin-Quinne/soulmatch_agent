@@ -12,6 +12,7 @@ RelationshipPredictionAgent — 关系状态预测与共形不确定性量化
 - 共形预测提供有覆盖保证的预测区间
 """
 
+import asyncio
 import json
 from typing import Dict, Any, Optional
 from loguru import logger
@@ -32,8 +33,9 @@ class RelationshipPredictionAgent:
         if calibrator is None:
             self.calibrator = ConformalCalibrator(alpha=0.10)
             # Try to load calibration data
+            from src.config import settings
+            calib_path = str(settings.data_dir / "training" / "conformal_calibration.json")
             import os
-            calib_path = "data/training/conformal_calibration.json"
             if os.path.exists(calib_path):
                 try:
                     self.calibrator.load(calib_path)
@@ -62,6 +64,31 @@ class RelationshipPredictionAgent:
             return {}
 
         logger.info(f"[RelationshipPredictionAgent] Turn {ctx.turn_count}: 开始关系预测")
+
+        try:
+            return await self._execute_inner(ctx)
+        except Exception as e:
+            logger.error(f"[RelationshipPredictionAgent] Turn {ctx.turn_count}: 预测失败: {e}")
+            return {
+                "sentiment": "neutral",
+                "sentiment_confidence": 0.5,
+                "rel_type": "other",
+                "rel_type_probs": {"other": 1.0},
+                "rel_status": ctx.rel_status or "stranger",
+                "rel_status_probs": {ctx.rel_status or "stranger": 1.0},
+                "can_advance": False,
+                "advance_prediction_set": ["uncertain"],
+                "advance_coverage_guarantee": 0.9,
+                "advance_softmax": {},
+                "blockers": [],
+                "catalysts": [],
+                "next_status_prediction": ctx.rel_status or "stranger",
+                "next_status_probs": {ctx.rel_status or "stranger": 1.0},
+                "reasoning_trace": f"Fallback due to error: {e}",
+            }
+
+    async def _execute_inner(self, ctx: AgentContext) -> Dict[str, Any]:
+        """Inner execution logic, separated for error handling."""
 
         # Step 1: 上下文压缩
         compressed_context = await self._compress_context(ctx)
@@ -292,7 +319,7 @@ Constraints:
         }
 
         # 2. LLM多次采样获取can_advance的softmax分布
-        softmax_dist = await self._sample_advance_distribution(ctx, rel_assessment, sentiment, n_samples=5)
+        softmax_dist = await self._sample_advance_distribution(ctx, rel_assessment, sentiment, n_samples=2)
 
         # 3. 构造预测字典和置信度字典
         predictions = {
@@ -392,6 +419,7 @@ Respond with JSON:
                     max_tokens=200,
                     json_mode=True,
                 )
+                await asyncio.sleep(0)  # Yield to event loop
 
                 # 解析JSON
                 response = response.strip()
@@ -525,7 +553,7 @@ Respond with JSON:
             sentiment=sentiment["label"],
             emotion_trend=emotion_trend,
             turn_count=ctx.turn_count,
-            n_samples=5
+            n_samples=2
         )
 
         # 获取最可能的状态
@@ -604,6 +632,7 @@ Respond with JSON:
                     max_tokens=200,
                     json_mode=True,
                 )
+                await asyncio.sleep(0)  # Yield to event loop
 
                 # 解析JSON
                 response = response.strip()
