@@ -38,35 +38,35 @@ const STATUS_LABELS: Record<string, string> = {
   committed: 'Committed',
 };
 
-const SENTIMENT_COLORS: Record<string, string> = {
-  positive: 'text-green-400',
-  neutral: 'text-yellow-400',
-  negative: 'text-red-400',
-};
-
 function AdvancePredictionBadge({ predictionSet }: { predictionSet: string[] }) {
   const hasYes = predictionSet.includes('yes');
   const hasUncertain = predictionSet.includes('uncertain');
   const hasNo = predictionSet.includes('no');
 
-  let color = 'bg-gray-700 text-gray-300';
+  let bg = 'var(--bg-hover)';
+  let textColor = 'var(--text-muted)';
+  let borderColor = 'transparent';
   let label = 'Uncertain';
 
   if (hasYes && !hasUncertain && !hasNo) {
-    color = 'bg-green-900 text-green-300 border border-green-600';
+    bg = 'rgba(34,197,94,0.15)'; textColor = '#4ade80'; borderColor = '#22c55e';
     label = '✓ Can Advance';
   } else if (hasYes && hasUncertain) {
-    color = 'bg-yellow-900 text-yellow-300 border border-yellow-600';
+    bg = 'rgba(234,179,8,0.15)'; textColor = '#facc15'; borderColor = '#eab308';
     label = '~ Maybe Advance';
-  } else if (hasUncertain && hasNo || (hasNo && !hasYes)) {
-    color = 'bg-red-900 text-red-300 border border-red-600';
+  } else if ((hasUncertain && hasNo) || (hasNo && !hasYes)) {
+    bg = 'rgba(239,68,68,0.15)'; textColor = '#f87171'; borderColor = '#ef4444';
     label = '✗ Not Ready';
   }
 
   return (
-    <div className={`px-3 py-1.5 rounded-full text-xs font-medium ${color}`}>
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 8,
+      padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+      background: bg, color: textColor, border: `1px solid ${borderColor}`,
+    }}>
       {label}
-      <span className="ml-2 opacity-70">
+      <span style={{ opacity: 0.7 }}>
         [{predictionSet.join(', ')}] @ 90%
       </span>
     </div>
@@ -78,28 +78,27 @@ function RelationshipProgressBar({ status }: { status: string }) {
   const progress = currentIdx >= 0 ? ((currentIdx + 1) / STATUS_ORDER.length) * 100 : 0;
 
   return (
-    <div className="mb-4">
-      <div className="flex justify-between mb-1 text-xs text-gray-400">
-        {STATUS_ORDER.map((s) => (
-          <span
-            key={s}
-            className={
-              s === status
-                ? 'text-pink-400 font-medium'
-                : STATUS_ORDER.indexOf(s) < (currentIdx >= 0 ? currentIdx : 0)
-                ? 'text-gray-300'
-                : 'text-gray-600'
-            }
-          >
-            {STATUS_LABELS[s]}
-          </span>
-        ))}
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11 }}>
+        {STATUS_ORDER.map((s) => {
+          const idx = STATUS_ORDER.indexOf(s);
+          let color = 'var(--text-dim)';
+          if (s === status) color = 'var(--accent)';
+          else if (idx < (currentIdx >= 0 ? currentIdx : 0)) color = 'var(--text-muted)';
+          return (
+            <span key={s} style={{ color, fontWeight: s === status ? 600 : 400 }}>
+              {STATUS_LABELS[s]}
+            </span>
+          );
+        })}
       </div>
-      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-full transition-all duration-500"
-          style={{ width: `${progress}%` }}
-        />
+      <div style={{
+        height: 8, background: 'var(--bg-hover)', borderRadius: 4, overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%', width: `${progress}%`, borderRadius: 4,
+          background: 'var(--gradient-1)', transition: 'width 0.5s ease',
+        }} />
       </div>
     </div>
   );
@@ -108,7 +107,10 @@ function RelationshipProgressBar({ status }: { status: string }) {
 function TrustTrajectoryChart({ history }: { history: TrustHistory[] }) {
   if (history.length < 2) {
     return (
-      <div className="h-20 flex items-center justify-center text-gray-500 text-xs">
+      <div style={{
+        height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--text-dim)', fontSize: 12,
+      }}>
         Need more turns to show trust trajectory
       </div>
     );
@@ -132,13 +134,15 @@ function TrustTrajectoryChart({ history }: { history: TrustHistory[] }) {
     ? history[history.length - 1].trust - history[history.length - 2].trust
     : 0;
 
+  const trendColor = trend > 0 ? '#4ade80' : trend < 0 ? '#f87171' : 'var(--text-muted)';
+
   return (
     <div>
-      <svg width="100%" viewBox={`0 0 ${width} ${height}`} className="mb-1">
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ marginBottom: 4 }}>
         <polyline
           points={points.join(' ')}
           fill="none"
-          stroke="#ec4899"
+          stroke="var(--accent)"
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -151,21 +155,26 @@ function TrustTrajectoryChart({ history }: { history: TrustHistory[] }) {
               key={i}
               cx={x}
               cy={y}
-              r="2"
-              fill={i === history.length - 1 ? '#f9a8d4' : '#ec4899'}
+              r="2.5"
+              fill={i === history.length - 1 ? 'var(--accent-glow)' : 'var(--accent)'}
             />
           );
         })}
       </svg>
-      <div className="flex justify-between text-xs text-gray-400">
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)' }}>
         <span>Trust: {(currentTrust * 100).toFixed(0)}%</span>
-        <span className={trend > 0 ? 'text-green-400' : trend < 0 ? 'text-red-400' : 'text-gray-400'}>
+        <span style={{ color: trendColor }}>
           {trend > 0 ? '↑' : trend < 0 ? '↓' : '→'} {Math.abs(trend * 100).toFixed(1)}%
         </span>
       </div>
     </div>
   );
 }
+
+const sectionLabel: React.CSSProperties = {
+  fontSize: 11, color: 'var(--text-muted)', marginBottom: 8,
+  fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+};
 
 export default function RelationshipTab({
   relationshipData,
@@ -185,76 +194,77 @@ export default function RelationshipTab({
 
   if (!relationshipData) {
     return (
-      <div className="p-4 text-center text-gray-500 text-sm">
-        <div className="text-2xl mb-2">💫</div>
+      <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
+        <div style={{ fontSize: 28, marginBottom: 8 }}>💫</div>
         <p>Relationship analysis will appear</p>
-        <p className="text-xs mt-1 text-gray-600">after turn 5</p>
+        <p style={{ fontSize: 11, marginTop: 4, color: 'var(--text-dim)' }}>after turn 5</p>
       </div>
     );
   }
 
   const { rel_status, rel_type, sentiment, advance_prediction_set } = relationshipData;
+  const sentimentColor = sentiment === 'positive' ? '#4ade80'
+    : sentiment === 'negative' ? '#f87171' : '#facc15';
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Milestone Report Modal */}
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Milestone Report */}
       {showMilestone && milestoneReport && (
-        <div className="bg-purple-900/50 border border-purple-500 rounded-lg p-3 text-sm animate-pulse">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-purple-300 font-medium">
+        <div style={{
+          background: 'rgba(147,51,234,0.12)', border: '1px solid rgba(147,51,234,0.4)',
+          borderRadius: 8, padding: 12, fontSize: 13,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ color: '#c084fc', fontWeight: 500 }}>
               🎯 Milestone Report (Turn {milestoneReport.turn})
             </span>
             <button
               onClick={() => setShowMilestone(false)}
-              className="ml-auto text-gray-500 hover:text-gray-300"
-            >
-              ×
-            </button>
+              style={{
+                marginLeft: 'auto', background: 'none', border: 'none',
+                color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16,
+              }}
+            >×</button>
           </div>
-          <p className="text-gray-300 text-xs">{milestoneReport.message}</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>{milestoneReport.message}</p>
           {milestoneReport.predicted_status_at_turn_30 && (
-            <p className="text-purple-300 text-xs mt-1">
+            <p style={{ color: '#c084fc', fontSize: 12, marginTop: 4 }}>
               Predicted at Turn 30: {milestoneReport.predicted_status_at_turn_30}
             </p>
           )}
         </div>
       )}
 
-      {/* Relationship Status Progress */}
+      {/* Relationship Stage */}
       <div>
-        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">
-          Relationship Stage
-        </div>
+        <div style={sectionLabel}>Relationship Stage</div>
         <RelationshipProgressBar status={rel_status} />
-        <div className="flex items-center gap-2 text-xs mt-1">
-          <span className="text-gray-500">Type:</span>
-          <span className="text-pink-400 capitalize">{rel_type}</span>
-          <span className="mx-1 text-gray-600">·</span>
-          <span className="text-gray-500">Sentiment:</span>
-          <span className={`capitalize ${SENTIMENT_COLORS[sentiment] ?? 'text-gray-400'}`}>
-            {sentiment}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginTop: 4 }}>
+          <span style={{ color: 'var(--text-dim)' }}>Type:</span>
+          <span style={{ color: 'var(--accent)', textTransform: 'capitalize' }}>{rel_type}</span>
+          <span style={{ color: 'var(--text-dim)', margin: '0 2px' }}>·</span>
+          <span style={{ color: 'var(--text-dim)' }}>Sentiment:</span>
+          <span style={{ color: sentimentColor, textTransform: 'capitalize' }}>{sentiment}</span>
         </div>
       </div>
 
-      {/* Conformal Prediction: Can Advance? */}
+      {/* Can Advance? */}
       <div>
-        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">
-          Can Advance? (Conformal @ 90%)
-        </div>
+        <div style={sectionLabel}>Can Advance? (Conformal @ 90%)</div>
         <AdvancePredictionBadge predictionSet={advance_prediction_set ?? []} />
       </div>
 
       {/* Trust Trajectory */}
       <div>
-        <div className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">
-          Trust Trajectory
-        </div>
+        <div style={sectionLabel}>Trust Trajectory</div>
         <TrustTrajectoryChart history={trustHistory} />
       </div>
 
       {/* Turn counter */}
-      <div className="text-xs text-gray-600 text-center border-t border-gray-700 pt-2">
+      <div style={{
+        fontSize: 11, color: 'var(--text-dim)', textAlign: 'center',
+        borderTop: '1px solid var(--border)', paddingTop: 8,
+      }}>
         Next prediction at Turn {Math.ceil(turnCount / 5) * 5 + 5}
       </div>
     </div>
