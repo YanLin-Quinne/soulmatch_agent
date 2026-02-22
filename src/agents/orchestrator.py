@@ -251,6 +251,12 @@ class OrchestratorAgent:
             except Exception as e:
                 logger.error(f"[Orchestrator] Memory update failed: {e}")
 
+        # Always include memory stats for frontend visibility
+        try:
+            response["memory_stats"] = self.memory_manager.get_memory_stats()
+        except Exception:
+            pass
+
         # Scam / emotion in response
         if self.ctx.scam_warning_level != "none":
             response["scam_detection"] = {
@@ -284,12 +290,27 @@ class OrchestratorAgent:
         try:
             rel_result = await self.relationship_agent.execute(self.ctx)
             if rel_result:
+                # Serialize social consensus votes for frontend
+                social_votes = []
+                consensus = rel_result.get("social_consensus")
+                if consensus and hasattr(consensus, "votes"):
+                    for v in consensus.votes:
+                        social_votes.append({
+                            "agent": v.agent_name,
+                            "vote": v.vote,
+                            "rel_status": v.rel_status,
+                            "confidence": round(v.confidence, 2),
+                            "reasoning": v.reasoning[:120],
+                        })
+
                 result["relationship_prediction"] = {
                     "rel_status": rel_result.get("rel_status"),
                     "rel_type": rel_result.get("rel_type"),
                     "sentiment": rel_result.get("sentiment"),
                     "can_advance": rel_result.get("can_advance"),
                     "advance_prediction_set": rel_result.get("advance_prediction_set"),
+                    "social_votes": social_votes,
+                    "vote_distribution": getattr(consensus, "vote_distribution", {}) if consensus else {},
                 }
                 self.ctx.extended_features["trust_score"] = self.ctx.extended_features.get("trust_score", 0.5)
                 self.ctx.extended_features["relationship_status"] = rel_result.get("rel_status")

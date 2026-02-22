@@ -125,9 +125,18 @@ function App() {
     sentiment: string;
     can_advance: boolean;
     advance_prediction_set: string[];
+    social_votes?: { agent: string; vote: string; rel_status: string; confidence: number; reasoning: string }[];
+    vote_distribution?: Record<string, number>;
   } | null>(null);
   const [milestoneReport, setMilestoneReport] = useState<any>(null);
   const [trustHistory, setTrustHistory] = useState<{ turn: number; trust: number }[]>([]);
+  const [memoryStats, setMemoryStats] = useState<{
+    current_turn: number;
+    working_memory_size: number;
+    episodic_memory_count: number;
+    semantic_memory_count: number;
+    compression_ratio: number;
+  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -232,6 +241,11 @@ function App() {
           if (data.data) {
             setContextData(data.data);
             if (data.data.turn_count) setTurnCount(data.data.turn_count);
+          }
+          break;
+        case 'memory_stats':
+          if (data.data) {
+            setMemoryStats(data.data);
           }
           break;
         case 'error':
@@ -655,6 +669,46 @@ function App() {
 
                 {activeTab === 'memory' && (
                   <>
+                    {/* Three-Layer Memory Architecture */}
+                    {memoryStats && (
+                      <div className="sidebar-section">
+                        <h4>Three-Layer Memory</h4>
+                        <div className="stat-row">
+                          <span className="label">Working Memory</span>
+                          <span className="value" style={{ color: 'var(--accent)' }}>
+                            {memoryStats.working_memory_size} turns
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
+                          Recent conversation buffer (max 20)
+                        </div>
+                        <div className="stat-row">
+                          <span className="label">Episodic Memory</span>
+                          <span className="value" style={{ color: memoryStats.episodic_memory_count > 0 ? '#facc15' : 'var(--text-dim)' }}>
+                            {memoryStats.episodic_memory_count} episodes
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
+                          Compressed conversation summaries
+                        </div>
+                        <div className="stat-row">
+                          <span className="label">Semantic Memory</span>
+                          <span className="value" style={{ color: memoryStats.semantic_memory_count > 0 ? '#c084fc' : 'var(--text-dim)' }}>
+                            {memoryStats.semantic_memory_count} insights
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
+                          High-level user understanding
+                        </div>
+                        {memoryStats.compression_ratio > 0 && (
+                          <div className="stat-row" style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4 }}>
+                            <span className="label">Compression</span>
+                            <span className="value">{(memoryStats.compression_ratio * 100).toFixed(0)}%</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="sidebar-section">
                       <h4>Retrieved Memories</h4>
                       {memories.length > 0 ? (
@@ -671,7 +725,7 @@ function App() {
                           ))}
                         </div>
                       ) : (
-                        <div className="placeholder">No memories yet</div>
+                        <div className="placeholder">No memories retrieved yet</div>
                       )}
                     </div>
 

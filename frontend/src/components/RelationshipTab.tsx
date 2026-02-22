@@ -6,6 +6,16 @@ interface RelationshipData {
   sentiment: string;
   can_advance: boolean;
   advance_prediction_set: string[];
+  social_votes?: SocialVote[];
+  vote_distribution?: Record<string, number>;
+}
+
+interface SocialVote {
+  agent: string;
+  vote: string;
+  rel_status: string;
+  confidence: number;
+  reasoning: string;
 }
 
 interface MilestoneReport {
@@ -202,7 +212,7 @@ export default function RelationshipTab({
     );
   }
 
-  const { rel_status, rel_type, sentiment, advance_prediction_set } = relationshipData;
+  const { rel_status, rel_type, sentiment, advance_prediction_set, social_votes, vote_distribution } = relationshipData;
   const sentimentColor = sentiment === 'positive' ? '#4ade80'
     : sentiment === 'negative' ? '#f87171' : '#facc15';
 
@@ -259,6 +269,47 @@ export default function RelationshipTab({
         <div style={sectionLabel}>Trust Trajectory</div>
         <TrustTrajectoryChart history={trustHistory} />
       </div>
+
+      {/* Social Agents Voting */}
+      {social_votes && social_votes.length > 0 && (
+        <div>
+          <div style={sectionLabel}>Social Agents Voting ({social_votes.length} agents)</div>
+          {vote_distribution && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, fontSize: 11 }}>
+              {Object.entries(vote_distribution).map(([vote, count]) => {
+                const voteColor = vote === 'compatible' ? '#4ade80'
+                  : vote === 'incompatible' ? '#f87171' : '#facc15';
+                return (
+                  <span key={vote} style={{
+                    padding: '2px 8px', borderRadius: 10,
+                    background: `${voteColor}15`, color: voteColor, border: `1px solid ${voteColor}40`,
+                  }}>
+                    {vote}: {count}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {social_votes.map((v, i) => {
+              const voteColor = v.vote === 'compatible' ? '#4ade80'
+                : v.vote === 'incompatible' ? '#f87171' : '#facc15';
+              return (
+                <div key={i} style={{
+                  padding: '8px 10px', borderRadius: 6,
+                  background: 'var(--bg-hover)', fontSize: 11,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>{v.agent}</span>
+                    <span style={{ color: voteColor, fontWeight: 500 }}>{v.vote} ({Math.round(v.confidence * 100)}%)</span>
+                  </div>
+                  <div style={{ color: 'var(--text-muted)', lineHeight: 1.4 }}>{v.reasoning}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Turn counter */}
       <div style={{

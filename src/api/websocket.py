@@ -240,6 +240,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                             "data": result["context"]
                         })
 
+                    # Send memory stats (three-layer memory visibility)
+                    if "memory_stats" in result:
+                        await manager.send_message(user_id, {
+                            "type": "memory_stats",
+                            "data": result["memory_stats"]
+                        })
+
                     # Send warning message if present
                     if "warning" in result:
                         await manager.send_message(user_id, {
