@@ -37,9 +37,9 @@ class TestLLMRouterFallback:
             from src.agents.llm_router import MODEL_ROUTING
             fallback_chain = MODEL_ROUTING[AgentRole.PERSONA]
 
-            assert "claude-sonnet" in fallback_chain
-            assert "gpt-4o" in fallback_chain
-            assert fallback_chain.index("gpt-4o") > fallback_chain.index("claude-sonnet")
+            assert "gpt-5" in fallback_chain
+            assert "deepseek-reasoner" in fallback_chain
+            assert fallback_chain.index("deepseek-reasoner") > fallback_chain.index("gpt-5")
 
     def test_cost_tracking(self, router):
         """Verify cost tracking"""

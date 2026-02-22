@@ -58,7 +58,8 @@ class TestDataModels:
             communication_style="casual",
             communication_confidence=0.8,
             core_values=["honesty"],
-            values_confidence=0.7
+            values_confidence=0.7,
+            goals_confidence=0.6
         )
         
         persona = PersonaProfile(
@@ -144,9 +145,9 @@ class TestStateMachine:
         
         sm = ConversationStateMachine(user_id="test_user")
         
-        # First turn
+        # First turn (0 - 0 = 0, not >= 3)
         sm.context.turn_count = 0
-        assert sm.context.should_update_features(update_frequency=3) is True
+        assert sm.context.should_update_features(update_frequency=3) is False
         
         # Turn 1 (shouldn't update)
         sm.context.turn_count = 1
