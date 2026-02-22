@@ -1,36 +1,58 @@
-/* ===== CSS Variables ===== */
+/* ===== CSS Variables (social-forecast inspired) ===== */
 :root {
-  /* Dark theme (default) */
-  --bg: #0a0a0f;
-  --surface: #18181b;
-  --border: #27272a;
-  --text: #e4e4e7;
-  --text-muted: #71717a;
-  --text-dim: #52525b;
+  /* Dark theme (default) - social-forecast color scheme */
+  --bg: #0a0b0f;
+  --bg-deep: #0a0b0f;
+  --surface: #12131a;
+  --bg-card: #12131a;
+  --bg-hover: #1a1b25;
+  --border: #1e1f2e;
+  --text: #e8e8ec;
+  --text-primary: #e8e8ec;
+  --text-muted: #7a7b8e;
+  --text-secondary: #7a7b8e;
+  --text-dim: #44455a;
   --text-bright: #fafafa;
-  --accent: #818cf8;
-  --accent-hover: #6366f1;
-  --accent-light: #a5b4fc;
-  --accent-bg: rgba(129, 140, 248, 0.08);
-  --accent-border: rgba(129, 140, 248, 0.15);
+  --accent: #00e5a0;
+  --accent-hover: #00b4d8;
+  --accent-light: #00e5a0;
+  --accent-bg: rgba(0, 229, 160, 0.08);
+  --accent-dim: rgba(0, 229, 160, 0.2);
+  --accent-glow: rgba(0, 229, 160, 0.4);
+  --accent-border: rgba(0, 229, 160, 0.15);
+  --gradient-1: linear-gradient(135deg, #00e5a0 0%, #00b4d8 100%);
+  --gradient-2: linear-gradient(135deg, #7b2ff7 0%, #00e5a0 100%);
+  --warning: #ff6b6b;
+  --warning-dim: rgba(255, 107, 107, 0.13);
   --scrollbar: #3f3f46;
   --overlay: #3f3f46;
 }
 
 [data-theme='light'] {
-  /* Light theme */
+  /* Light theme - adapted from social-forecast */
   --bg: #f8f9fa;
+  --bg-deep: #f0f1f3;
   --surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #f3f4f6;
   --border: #e5e7eb;
   --text: #1f2937;
+  --text-primary: #1f2937;
   --text-muted: #6b7280;
+  --text-secondary: #6b7280;
   --text-dim: #9ca3af;
   --text-bright: #111827;
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-light: #818cf8;
-  --accent-bg: rgba(99, 102, 241, 0.08);
-  --accent-border: rgba(99, 102, 241, 0.15);
+  --accent: #00b4d8;
+  --accent-hover: #0096b8;
+  --accent-light: #00e5a0;
+  --accent-bg: rgba(0, 180, 216, 0.08);
+  --accent-dim: rgba(0, 180, 216, 0.2);
+  --accent-glow: rgba(0, 180, 216, 0.4);
+  --accent-border: rgba(0, 180, 216, 0.15);
+  --gradient-1: linear-gradient(135deg, #00b4d8 0%, #00e5a0 100%);
+  --gradient-2: linear-gradient(135deg, #7b2ff7 0%, #00b4d8 100%);
+  --warning: #dc2626;
+  --warning-dim: rgba(220, 38, 38, 0.13);
   --scrollbar: #d1d5db;
   --overlay: #d1d5db;
 }
@@ -95,7 +117,7 @@ body {
   font-size: 2.4rem;
   font-weight: 800;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
+  background: var(--gradient-1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -172,8 +194,8 @@ body {
 
 .card:hover {
   border-color: var(--accent);
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(129, 140, 248, 0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 24px var(--accent-dim);
 }
 
 @keyframes cardIn {
@@ -271,12 +293,12 @@ body {
 
 .interest-tag {
   padding: 3px 10px;
-  border-radius: 10px;
+  border-radius: 20px;
   font-size: 11px;
   font-weight: 500;
-  background: rgba(129, 140, 248, 0.1);
-  color: var(--accent-light);
-  border: 1px solid var(--accent-border);
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: none;
 }
 
 /* Footer */
@@ -773,9 +795,9 @@ body {
 
 .confidence-bar-fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--gradient-1);
   border-radius: 3px;
-  transition: width 0.3s ease;
+  transition: width 0.8s ease;
 }
 
 .stat-row {
@@ -1033,4 +1055,145 @@ body {
   .current-emotion-emoji {
     font-size: 36px;
   }
+}
+
+/* ===== Social-forecast inspired enhancements ===== */
+
+/* Emotion tag (inline status indicator) */
+.emotion-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.emotion-tag.negative {
+  background: var(--warning-dim);
+  color: var(--warning);
+}
+
+/* Trait bar (Big Five visualization) */
+.trait-bar {
+  position: relative;
+  flex: 1;
+  margin: 0 8px;
+  height: 3px;
+  background: var(--bg-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.trait-bar-fill {
+  position: absolute;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.8s ease;
+}
+
+/* Persona card hover glow effect */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  padding: 1px;
+  background: var(--gradient-1);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.card:hover::before {
+  opacity: 0.5;
+}
+
+/* Progress bar with gradient */
+.progress-bar {
+  height: 4px;
+  background: var(--bg-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gradient-1);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* Sidebar card with subtle border */
+.sidebar-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+/* Glassmorphism effect for header */
+.chat-header {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(18, 19, 26, 0.8);
+}
+
+[data-theme='light'] .chat-header {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Accent glow on focus */
+.input-area input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* Hero badge with gradient border */
+.hero-badge {
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+}
+
+.hero-badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  padding: 1px;
+  background: var(--gradient-2);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Smooth gradient text for accent elements */
+.overall-confidence .big-number {
+  background: var(--gradient-1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Enhanced emotion pill with gradient */
+.emotion-pill {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+
+/* Progress ring with gradient stroke */
+.progress-fill {
+  stroke: url(#gradient);
+}
+
+/* Add SVG gradient definition for progress ring */
+svg defs {
+  display: none;
 }
