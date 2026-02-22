@@ -88,7 +88,7 @@ MODEL_ROUTING: dict[AgentRole, list[str]] = {
     AgentRole.FEATURE:  ["claude-opus-4", "gpt-5", "claude-sonnet", "deepseek-reasoner"],
     AgentRole.SCAM:     ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
     AgentRole.MEMORY:   ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
-    AgentRole.QUESTION: ["claude-opus-4", "claude-sonnet", "gemini-3-pro", "deepseek-chat"],
+    AgentRole.QUESTION: ["claude-opus-4", "claude-sonnet", "gemini-flash", "deepseek-chat"],
     AgentRole.GENERAL:  ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
 }
 
