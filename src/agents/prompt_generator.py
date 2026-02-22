@@ -43,8 +43,48 @@ class ConversationHistory:
         self.add_message("assistant", content)
     
     def to_api_format(self) -> list[dict]:
-        """Convert to API format (list of message dicts)"""
-        return [msg.to_dict() for msg in self.messages]
+        """
+        Convert to API format (list of message dicts)
+
+        Guarantees that all messages have correct format:
+        - Each message is a dict
+        - Has 'role' key (str)
+        - Has 'content' key (str)
+        """
+        result = []
+        for i, msg in enumerate(self.messages):
+            try:
+                # Get dict from Message object
+                msg_dict = msg.to_dict()
+
+                # Validate format
+                if not isinstance(msg_dict, dict):
+                    raise ValueError(f"Message {i} is not dict: {type(msg_dict)}")
+
+                if "role" not in msg_dict:
+                    raise ValueError(f"Message {i} missing 'role' key")
+
+                if "content" not in msg_dict:
+                    raise ValueError(f"Message {i} missing 'content' key")
+
+                # Ensure content is string
+                if not isinstance(msg_dict["content"], str):
+                    msg_dict["content"] = str(msg_dict["content"])
+
+                # Ensure role is valid
+                if msg_dict["role"] not in ["user", "assistant", "system"]:
+                    raise ValueError(f"Message {i} has invalid role: {msg_dict['role']}")
+
+                result.append(msg_dict)
+
+            except Exception as e:
+                # Log error but don't crash
+                import logging
+                logging.error(f"Error formatting message {i}: {e}. Message: {msg}")
+                # Skip this message
+                continue
+
+        return result
     
     def clear(self):
         """Clear all messages"""

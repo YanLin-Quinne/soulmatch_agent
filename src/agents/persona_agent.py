@@ -1,6 +1,7 @@
 """Persona Agent — bot role-play with context-aware responses and tool calling."""
 
 import json
+import re
 from pathlib import Path
 from typing import Optional, Union
 from loguru import logger
@@ -86,6 +87,9 @@ class PersonaAgent:
             if ctx:
                 ctx.tools_called = getattr(self.tool_executor, '_last_tools_called', [])
 
+            # Clean response (remove RPG-style actions)
+            text = self._sanitize_response(text)
+
             self.conversation_history.add_assistant_message(text)
             logger.debug(f"[{self.persona.profile_id}] Response: {text[:100]}...")
             return text
@@ -97,6 +101,14 @@ class PersonaAgent:
             fallback = self._get_fallback_response()
             self.conversation_history.add_assistant_message(fallback)
             return fallback
+
+    def _sanitize_response(self, text: str) -> str:
+        """Remove RPG-style actions and clean up response."""
+        # Remove *action* patterns
+        text = re.sub(r'\*[^*]{1,50}\*', '', text)
+        # Remove multiple spaces
+        text = re.sub(r'\s{2,}', ' ', text)
+        return text.strip() or text
 
     def _detect_language(self, message: str) -> str:
         """Detect if message is in Chinese or English."""
@@ -140,6 +152,14 @@ class PersonaAgent:
     def _build_system_prompt(self, ctx: Optional[AgentContext], language: str = "english") -> str:
         """Compose the full system prompt by injecting context blocks."""
         parts = [self.persona.system_prompt]
+
+        # Add anti-RPG instructions
+        parts.append(
+            "[重要规则]\n"
+            "- 绝对禁止使用星号动作描写(如*微笑*、*叹气*等RPG式描述)\n"
+            "- 想表达情绪用颜文字(😊🤔😂等)或自然文字描述\n"
+            "- 像真人发微信一样说话，不要小说叙述风格"
+        )
 
         # Add language-specific instructions
         if language == "chinese":
