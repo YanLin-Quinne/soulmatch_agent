@@ -14,30 +14,30 @@ Multi-agent relationship prediction system with conformal uncertainty quantifica
 
 ## Features
 
-- 🤖 6 协同Agent（Orchestrator, Feature, Emotion, Scam, Persona, Question）
-- 📊 42维用户特征推断（Big Five + MBTI + 依恋风格 + 爱语 + 信任轨迹）
-- 🎯 保形预测（APS）不确定性量化
-- 🧠 三层记忆管理（Working → Episodic → Semantic）
-- 💬 实时WebSocket通信
-- 🎨 精美UI设计（social-forecast风格）
+- 15 collaborative agents (Orchestrator, Feature, Emotion, Scam, Persona, Relationship, Memory, etc.)
+- 42-dimensional user feature inference (Big Five, MBTI, attachment style, love language, trust trajectory)
+- Conformal prediction (APS) with coverage guarantees
+- Three-layer memory management (Working, Episodic, Semantic)
+- Real-time WebSocket communication
+- Multi-LLM routing (GPT-5.2, Gemini 3.1 Pro, Claude Opus 4.6, Qwen 3.5 Plus, DeepSeek V3.2)
 
 ## Usage
 
-1. 选择一个Bot角色开始对话
-2. 系统实时推断你的特征和情绪
-3. 第10/30轮生成里程碑报告
-4. 查看关系状态预测和保形预测区间
+1. Select a bot persona to start a conversation
+2. The system infers your features and emotions in real time
+3. Milestone reports are generated at turns 10 and 30
+4. View relationship state predictions with conformal prediction intervals
 
 ## Tech Stack
 
 - Backend: FastAPI + Python 3.11
 - Frontend: React + TypeScript
-- LLM: GPT-5.2, Gemini Flash, DeepSeek
-- Memory: ChromaDB
+- LLM: GPT-5.2, Gemini 3.1 Pro, Claude Opus 4.6, Qwen 3.5 Plus, DeepSeek V3.2
+- Memory: ChromaDB + Three-layer architecture
 - Calibration: Conformal Prediction (APS)
 
 ## Paper
 
 Based on research combining:
 - Social Agents (ICLR 2026): Demographic diversity for wisdom of crowds
-- Conformal Prediction: Uncertainty quantification with coverage guarantees
+- Conformal Prediction (EMNLP 2025): Uncertainty quantification with coverage guarantees

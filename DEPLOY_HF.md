@@ -1,113 +1,101 @@
-# HuggingFace Spaces 部署指南
+# HuggingFace Spaces Deployment Guide
 
-## 步骤1：创建新的Space
+## Step 1: Create a New Space
 
-1. 访问 https://huggingface.co/new-space
-2. 填写信息：
+1. Go to https://huggingface.co/new-space
+2. Fill in the details:
    - **Owner**: Quinnnnnne
    - **Space name**: soulmatch-agent
    - **License**: MIT
    - **Select the Space SDK**: Docker
-   - **Space hardware**: CPU basic (免费) 或 CPU upgrade (更快)
+   - **Space hardware**: CPU basic (free) or CPU upgrade (faster)
 
-## 步骤2：配置环境变量
+## Step 2: Configure Environment Variables
 
-在Space的Settings → Variables and secrets中添加：
+In the Space Settings, go to Variables and Secrets and add:
 
 ```
-OPENAI_API_KEY=你的OpenAI密钥
-GEMINI_API_KEY=你的Gemini密钥
-DEEPSEEK_API_KEY=你的DeepSeek密钥
+OPENAI_API_KEY=your_openai_key
+GEMINI_API_KEY=your_gemini_key
+ANTHROPIC_API_KEY=your_anthropic_key
+QWEN_API_KEY=your_qwen_key
+DEEPSEEK_API_KEY=your_deepseek_key
 ```
 
-至少配置一个LLM provider的密钥。
+Configure at least one LLM provider key.
 
-## 步骤3：推送代码
+## Step 3: Push Code
 
 ```bash
 cd /Users/quinne/Desktop/soulmatch_agent_test
 
-# 添加HuggingFace remote
+# Add HuggingFace remote
 git remote add hf https://huggingface.co/spaces/Quinnnnnne/soulmatch-agent
 
-# 推送代码
+# Push code
 git push hf main
 ```
 
-## 步骤4：等待构建
+## Step 4: Wait for Build
 
-HuggingFace会自动：
-1. 读取Dockerfile
-2. 构建Docker镜像（约5-10分钟）
-3. 启动容器
-4. 在端口7860上运行应用
+HuggingFace will automatically:
+1. Read the Dockerfile
+2. Build the Docker image (approximately 5-10 minutes)
+3. Start the container
+4. Run the application on port 7860
 
-## 步骤5：访问应用
+## Step 5: Access the Application
 
-构建完成后，访问：
+Once the build is complete, visit:
 https://huggingface.co/spaces/Quinnnnnne/soulmatch-agent
 
-## 故障排查
+## Troubleshooting
 
-### 构建失败
-- 检查Dockerfile语法
-- 查看Build logs
-- 确保requirements.txt包含所有依赖
+### Build Failures
+- Check Dockerfile syntax
+- Review Build logs in the Space UI
+- Ensure requirements.txt includes all dependencies
 
-### 运行时错误
-- 检查Environment variables是否正确设置
-- 查看Container logs
-- 确保至少一个LLM API密钥有效
+### Runtime Errors
+- Verify environment variables are set correctly
+- Check Container logs
+- Ensure at least one LLM API key is valid
 
-### 前端无法加载
-- 确保frontend/dist目录存在
-- 检查Dockerfile中的npm build步骤
-- 查看静态文件路径是否正确
+### Frontend Not Loading
+- Ensure frontend/dist directory exists
+- Check the npm build step in Dockerfile
+- Verify static file paths are correct
 
-## 本地测试Docker构建
+## Local Docker Testing
 
 ```bash
-# 构建镜像
+# Build image
 docker build -t soulmatch-agent .
 
-# 运行容器
+# Run container
 docker run -p 7860:7860 \
   -e OPENAI_API_KEY=your_key \
   -e GEMINI_API_KEY=your_key \
   -e DEEPSEEK_API_KEY=your_key \
   soulmatch-agent
 
-# 访问 http://localhost:7860
+# Access http://localhost:7860
 ```
 
-## 更新Space
+## Updating the Space
 
-每次推送到main分支，HuggingFace会自动重新构建：
+Every push to the main branch triggers an automatic rebuild:
 
 ```bash
 git add .
-git commit -m "Update: 描述你的更改"
+git commit -m "Update: description of changes"
 git push hf main
 ```
 
-## 性能优化
+## Notes
 
-### 免费CPU basic tier限制：
-- 2 vCPU
-- 16GB RAM
-- 50GB disk
-- 适合demo和测试
-
-### 升级到CPU upgrade ($0.03/hour)：
-- 8 vCPU
-- 32GB RAM
-- 更快的响应速度
-- 适合生产环境
-
-## 注意事项
-
-1. **API密钥安全**：永远不要在代码中硬编码密钥，使用环境变量
-2. **CORS配置**：已在main.py中配置允许所有来源
-3. **WebSocket支持**：HuggingFace Spaces支持WebSocket
-4. **持久化存储**：容器重启后数据会丢失，ChromaDB使用内存模式
-5. **日志查看**：在Space页面点击"Logs"查看运行日志
+1. **API key security**: Never hardcode keys in source code; use environment variables
+2. **CORS**: Configured in main.py to allow all origins
+3. **WebSocket**: HuggingFace Spaces supports WebSocket connections
+4. **Persistent storage**: Data is lost on container restart; ChromaDB uses in-memory mode
+5. **Logs**: Click "Logs" on the Space page to view runtime logs

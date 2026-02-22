@@ -11,14 +11,15 @@ from src.agents.conformal_calibrator import (
     ConformalCalibrator, ConformalResult, discretize_value, get_options,
     CATEGORICAL_DIMS, CONTINUOUS_BINS, ALL_DIMS,
 )
+from src.config import settings
 
 
 # Confidence threshold: stop LLM extraction when average confidence exceeds this
 CONVERGENCE_THRESHOLD = 0.80
 # Minimum information gain to justify an LLM call
 MIN_INFO_GAIN = 0.02
-# Default calibrator path (fitted offline)
-DEFAULT_CALIBRATOR_PATH = "data/calibration/conformal_calibrator.json"
+# Default calibrator path (fitted offline) — use absolute path via settings
+DEFAULT_CALIBRATOR_PATH = str(settings.data_dir / "calibration" / "conformal_calibrator.json")
 
 
 class FeaturePredictionAgent:

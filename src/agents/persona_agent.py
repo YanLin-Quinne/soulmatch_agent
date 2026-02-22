@@ -131,7 +131,7 @@ class PersonaAgent:
         try:
             text = router.chat(
                 role=AgentRole.PERSONA,
-                system=self.persona.system_prompt,
+                system=self._build_system_prompt(None),
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.9,
                 max_tokens=150,

@@ -69,6 +69,12 @@ class OrchestratorAgent:
     # ------------------------------------------------------------------
 
     def start_new_conversation(self, bot_id: Optional[str] = None) -> Dict[str, Any]:
+        # Reset context and state to prevent history leaking across bot switches
+        self.ctx = AgentContext(user_id=self.user_id)
+        self.state_machine.reset()
+        self.current_bot = None
+        self.memory_manager = MemoryManager(self.user_id, use_three_layer=True)
+
         bot_summaries = self.bot_pool.get_agent_summaries()
         if not bot_summaries:
             return {"success": False, "error": "No bots available"}

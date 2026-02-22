@@ -7,11 +7,11 @@ Successfully implemented the three-layer memory system with anti-hallucination m
 ## Architecture
 
 ```
-Layer 1: Working Memory (滑动窗口, 最近20轮)
+Layer 1: Working Memory (sliding window, last 20 turns)
     ↓ Every 10 turns
-Layer 2: Episodic Memory (LLM压缩摘要 + 关键事件)
+Layer 2: Episodic Memory (LLM-compressed summaries + key events)
     ↓ Every 50 turns
-Layer 3: Semantic Memory (反思 + 特征更新)
+Layer 3: Semantic Memory (reflection + feature updates)
 ```
 
 ## Implementation Files

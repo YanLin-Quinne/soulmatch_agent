@@ -65,8 +65,10 @@ class SessionManager:
             raise RuntimeError("Bot personas pool not initialized. Call set_bot_personas_pool() first.")
 
         if user_id in self.sessions:
-            logger.info(f"Session already exists for user {user_id}, reusing")
+            logger.info(f"Session already exists for user {user_id}, updating bot preference")
             self.session_metadata[user_id]["last_active"] = time.time()
+            if bot_id:
+                self.sessions[user_id].preferred_bot_id = bot_id
             return user_id
 
         orchestrator = OrchestratorAgent(

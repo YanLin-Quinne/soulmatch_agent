@@ -73,7 +73,7 @@ MODELS: dict[str, ModelSpec] = {
     "deepseek-chat": ModelSpec(Provider.DEEPSEEK, "deepseek-chat", 0.00014, 0.00028),
     # Qwen 3 Max (2026)
     "qwen-max": ModelSpec(Provider.QWEN, "qwen3-max", 0.0008, 0.0024),
-    "qwen-plus": ModelSpec(Provider.QWEN, "qwen-plus", 0.0004, 0.0012),
+    "qwen-plus": ModelSpec(Provider.QWEN, "qwen3.5-plus", 0.0004, 0.0012),
     "qwen-turbo": ModelSpec(Provider.QWEN, "qwen-turbo", 0.0001, 0.0002),
     # Local (costs are zero — your hardware)
     "local": ModelSpec(Provider.LOCAL, "local", 0.0, 0.0),
