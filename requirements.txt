@@ -1,13 +1,7 @@
-# Core Dependencies
-torch==2.6.0
-transformers>=4.40.0
-trl>=0.8.0
-peft>=0.10.0
-datasets>=2.18.0
-
-# LLM APIs
+# LLM APIs (essential for deployment)
 anthropic>=0.25.0
 openai>=1.0.0
+google-genai>=0.3.0
 
 # FastAPI Backend
 fastapi>=0.110.0
