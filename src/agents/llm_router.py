@@ -71,8 +71,8 @@ MODELS: dict[str, ModelSpec] = {
     # DeepSeek V3.2 Reasoner (2026)
     "deepseek-reasoner": ModelSpec(Provider.DEEPSEEK, "deepseek-reasoner", 0.00055, 0.0022),
     "deepseek-chat": ModelSpec(Provider.DEEPSEEK, "deepseek-chat", 0.00014, 0.00028),
-    # Qwen 3.5 Plus (2026)
-    "qwen-3.5-plus": ModelSpec(Provider.QWEN, "qwen3.5-plus", 0.0008, 0.0024),
+    # Qwen 3 Max (2026)
+    "qwen-max": ModelSpec(Provider.QWEN, "qwen3-max", 0.0008, 0.0024),
     "qwen-plus": ModelSpec(Provider.QWEN, "qwen-plus", 0.0004, 0.0012),
     "qwen-turbo": ModelSpec(Provider.QWEN, "qwen-turbo", 0.0001, 0.0002),
     # Local (costs are zero — your hardware)
@@ -81,15 +81,15 @@ MODELS: dict[str, ModelSpec] = {
     "hf": ModelSpec(Provider.HF, "hf", 0.0, 0.0),
 }
 
-# Default routing: role → ordered list of model keys to try (2026 Latest Models)
+# Default routing: role → ordered list of model keys to try (最适配策略)
 MODEL_ROUTING: dict[AgentRole, list[str]] = {
-    AgentRole.PERSONA:  ["claude-opus-4", "gpt-5", "claude-sonnet", "deepseek-reasoner"],
-    AgentRole.EMOTION:  ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
-    AgentRole.FEATURE:  ["claude-opus-4", "gpt-5", "claude-sonnet", "deepseek-reasoner"],
-    AgentRole.SCAM:     ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
-    AgentRole.MEMORY:   ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
-    AgentRole.QUESTION: ["claude-opus-4", "claude-sonnet", "gemini-flash", "deepseek-chat"],
-    AgentRole.GENERAL:  ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
+    AgentRole.PERSONA:  ["gpt-5", "deepseek-reasoner", "gemini-flash", "qwen-max"],  # 角色扮演需要高质量
+    AgentRole.EMOTION:  ["gemini-flash", "gpt-4o-mini", "deepseek-chat"],  # 情绪分类速度优先
+    AgentRole.FEATURE:  ["gpt-5", "deepseek-reasoner", "gemini-flash", "qwen-max"],  # 特征推理需要推理能力
+    AgentRole.SCAM:     ["gemini-flash", "gpt-4o-mini", "deepseek-chat"],  # 诈骗检测速度优先
+    AgentRole.MEMORY:   ["gemini-flash", "gpt-4o-mini", "deepseek-chat"],  # 记忆决策速度优先
+    AgentRole.QUESTION: ["gemini-flash", "deepseek-chat", "gpt-4o-mini"],  # 问题策略速度优先
+    AgentRole.GENERAL:  ["gemini-flash", "gpt-4o-mini", "deepseek-chat"],  # 通用任务速度优先
 }
 
 
