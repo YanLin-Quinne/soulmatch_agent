@@ -105,6 +105,10 @@ async def lifespan(app: FastAPI):
             
         except Exception as e:
             logger.error(f"Failed to load bot personas: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            logger.error(f"Exception details: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             logger.warning("API will start but conversations cannot be started")
     
     logger.info("✅ SoulMatch API started successfully")
@@ -433,3 +437,17 @@ else:
 # ============================================
 # Run with: uvicorn src.api.main:app --reload
 # ============================================
+
+
+@app.get("/api/v1/debug/personas-file", tags=["Debug"])
+async def check_personas_file():
+    """Debug endpoint to check if personas file exists"""
+    personas_path = settings.data_dir / "processed" / "bot_personas.json"
+    return {
+        "personas_path": str(personas_path),
+        "exists": personas_path.exists(),
+        "data_dir": str(settings.data_dir),
+        "data_dir_exists": settings.data_dir.exists(),
+        "processed_dir_exists": (settings.data_dir / "processed").exists(),
+        "files_in_processed": list((settings.data_dir / "processed").iterdir()) if (settings.data_dir / "processed").exists() else []
+    }
