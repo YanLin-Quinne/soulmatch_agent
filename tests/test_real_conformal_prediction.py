@@ -21,7 +21,7 @@ async def test_real_conformal_prediction():
 
     # Create agent with calibrator
     calibrator = ConformalCalibrator(alpha=0.10)
-    agent = RelationshipPredictionAgent(calibrator=calibrator, use_discussion_room=False)
+    agent = RelationshipPredictionAgent(calibrator=calibrator, use_social_agents=False)
 
     # Create context
     ctx = AgentContext(user_id="test_user")
@@ -111,7 +111,7 @@ async def test_conformal_with_calibration_data():
     print()
 
     # Create agent with calibrated predictor
-    agent = RelationshipPredictionAgent(calibrator=calibrator, use_discussion_room=False)
+    agent = RelationshipPredictionAgent(calibrator=calibrator, use_social_agents=False)
 
     # Create context
     ctx = AgentContext(user_id="test_user")

@@ -67,10 +67,11 @@ class ThreeLayerMemory:
     3. 防幻觉：严格grounding + 一致性校验
     """
 
-    def __init__(self, llm_router, working_memory_size: int = 20):
+    def __init__(self, llm_router, working_memory_size: int = 20, user_id: str = "default"):
         from src.agents.llm_router import LLMRouter
         self.llm: LLMRouter = llm_router
         self.working_memory_size = working_memory_size
+        self.user_id = user_id
 
         # Layer 1: Working Memory (FIFO队列)
         self.working_memory: List[WorkingMemoryItem] = []
@@ -83,6 +84,22 @@ class ThreeLayerMemory:
 
         # 当前轮次
         self.current_turn = 0
+
+        # ChromaDB for embedding-based retrieval
+        try:
+            from src.memory.chromadb_client import ChromaDBClient
+            self.chroma_client = ChromaDBClient()
+            self.chroma_collection = self.chroma_client.get_or_create_collection(user_id)
+            self.use_embeddings = True
+            logger.info("[ThreeLayerMemory] ChromaDB enabled for semantic retrieval")
+        except Exception as e:
+            logger.warning(f"[ThreeLayerMemory] ChromaDB not available: {e}. Falling back to keyword matching.")
+            self.chroma_client = None
+            self.chroma_collection = None
+            self.use_embeddings = False
+
+        # Archive for consistency checking (stores original dialogues)
+        self.dialogue_archive: Dict[tuple, List[WorkingMemoryItem]] = {}  # {(start_turn, end_turn): [items]}
 
     # ========== Layer 1: Working Memory ==========
 
@@ -185,6 +202,26 @@ IMPORTANT:
             self.episodic_memory.append(episode)
             logger.info(f"[ThreeLayerMemory] Compressed turns {turn_range[0]}-{turn_range[1]} to episodic memory")
 
+            # 保存原始对话到archive（用于一致性检查）
+            self.dialogue_archive[turn_range] = list(oldest_10)
+
+            # 存储到ChromaDB（用于embedding检索）
+            if self.use_embeddings and self.chroma_collection:
+                try:
+                    self.chroma_collection.add(
+                        ids=[episode.episode_id],
+                        documents=[episode.summary],
+                        metadatas=[{
+                            "turn_start": turn_range[0],
+                            "turn_end": turn_range[1],
+                            "emotion_trend": episode.emotion_trend,
+                            "key_events": ",".join(episode.key_events)
+                        }]
+                    )
+                    logger.debug(f"[ThreeLayerMemory] Stored episode {episode.episode_id} to ChromaDB")
+                except Exception as e:
+                    logger.warning(f"[ThreeLayerMemory] Failed to store to ChromaDB: {e}")
+
             # 从工作记忆中移除已压缩的10轮
             self.working_memory = self.working_memory[10:]
 
@@ -192,8 +229,32 @@ IMPORTANT:
             logger.error(f"[ThreeLayerMemory] Episodic compression failed: {e}")
 
     def retrieve_relevant_episodes(self, query: str, top_k: int = 3) -> List[EpisodicMemoryItem]:
-        """语义检索相关情景（简化版：基于关键词匹配）"""
-        # TODO: 使用embedding进行语义检索
+        """语义检索相关情景（使用embedding或关键词匹配）"""
+
+        # 优先使用embedding检索
+        if self.use_embeddings and self.chroma_collection:
+            try:
+                results = self.chroma_collection.query(
+                    query_texts=[query],
+                    n_results=min(top_k, len(self.episodic_memory))
+                )
+
+                if results and results['ids'] and len(results['ids'][0]) > 0:
+                    # 根据返回的episode_id找到对应的EpisodicMemoryItem
+                    episode_ids = results['ids'][0]
+                    relevant = []
+                    for ep_id in episode_ids:
+                        for episode in self.episodic_memory:
+                            if episode.episode_id == ep_id:
+                                relevant.append(episode)
+                                break
+
+                    logger.debug(f"[ThreeLayerMemory] Retrieved {len(relevant)} episodes via embedding search")
+                    return relevant
+            except Exception as e:
+                logger.warning(f"[ThreeLayerMemory] Embedding retrieval failed: {e}. Falling back to keyword matching.")
+
+        # Fallback: 关键词匹配
         relevant = []
         query_lower = query.lower()
 
@@ -201,6 +262,7 @@ IMPORTANT:
             if any(keyword in episode.summary.lower() for keyword in query_lower.split()):
                 relevant.append(episode)
 
+        logger.debug(f"[ThreeLayerMemory] Retrieved {len(relevant[:top_k])} episodes via keyword matching")
         return relevant[:top_k]
 
     def get_episodic_memory_context(self, query: Optional[str] = None) -> str:
@@ -308,11 +370,24 @@ IMPORTANT:
         # 检查最近的情景记忆
         latest_episode = self.episodic_memory[-1]
 
-        # 重新获取原始对话（从工作记忆或存档）
-        # 简化版：假设我们有原始对话的访问权限
-        # TODO: 实际实现需要从持久化存储中获取
+        # 从archive获取原始对话
+        turn_range = latest_episode.turn_range
+        original_dialogue = self.dialogue_archive.get(turn_range)
+
+        if not original_dialogue:
+            logger.warning(f"[ThreeLayerMemory] No archived dialogue found for {turn_range}. Skipping consistency check.")
+            return
+
+        # 构建原始对话文本
+        dialogue_text = "\n".join([
+            f"[Turn {item.turn}] {item.speaker}: {item.message}"
+            for item in original_dialogue
+        ])
 
         prompt = f"""Verify if the following episodic summary is consistent with the original dialogue.
+
+Original Dialogue:
+{dialogue_text}
 
 Episodic Summary:
 {latest_episode.summary}
@@ -329,7 +404,7 @@ Output JSON:
         try:
             response = self.llm.chat(
                 role=AgentRole.MEMORY,
-                system="You are a consistency checker. Detect hallucinations in memory summaries.",
+                system="You are a consistency checker. Detect hallucinations in memory summaries by comparing with original dialogue.",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=300,
                 json_mode=True
@@ -342,10 +417,79 @@ Output JSON:
             if not data.get("is_consistent", True):
                 logger.warning(f"[ThreeLayerMemory] Inconsistency detected in episode {latest_episode.episode_id}")
                 logger.warning(f"  Hallucinations: {data.get('hallucinations', [])}")
-                # TODO: 触发重新摘要或标记为不可信
+                logger.warning(f"  Missing info: {data.get('missing_info', [])}")
+
+                # 处理不一致：重新生成摘要
+                self._fix_inconsistent_episode(latest_episode, original_dialogue, data)
 
         except Exception as e:
             logger.error(f"[ThreeLayerMemory] Consistency check failed: {e}")
+
+    def _fix_inconsistent_episode(self, episode: EpisodicMemoryItem, original_dialogue: List[WorkingMemoryItem], inconsistency_data: Dict):
+        """修复不一致的情景记忆"""
+        logger.info(f"[ThreeLayerMemory] Attempting to fix inconsistent episode {episode.episode_id}")
+
+        # 重新生成摘要
+        dialogue_text = "\n".join([
+            f"[Turn {item.turn}] {item.speaker}: {item.message}"
+            for item in original_dialogue
+        ])
+
+        prompt = f"""Re-summarize the following conversation. Previous summary had hallucinations: {inconsistency_data.get('hallucinations', [])}.
+
+Dialogue:
+{dialogue_text}
+
+Output JSON:
+{{
+  "summary": "Accurate summary (2-3 sentences)",
+  "key_events": ["event1", "event2"],
+  "emotion_trend": "improving|declining|stable"
+}}
+
+CRITICAL: Only include facts explicitly present in the dialogue. Do NOT infer or hallucinate.
+"""
+
+        try:
+            response = self.llm.chat(
+                role=AgentRole.MEMORY,
+                system="You are a memory compression agent. Extract key information without hallucination.",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=400,
+                json_mode=True
+            )
+
+            import re
+            clean_response = re.sub(r'^```json\s*|\s*```$', '', response.strip(), flags=re.MULTILINE)
+            data = json.loads(clean_response)
+
+            # 更新episode
+            episode.summary = data["summary"]
+            episode.key_events = data.get("key_events", [])
+            episode.emotion_trend = data.get("emotion_trend", "stable")
+
+            # 更新ChromaDB
+            if self.use_embeddings and self.chroma_collection:
+                try:
+                    self.chroma_collection.update(
+                        ids=[episode.episode_id],
+                        documents=[episode.summary],
+                        metadatas=[{
+                            "turn_start": episode.turn_range[0],
+                            "turn_end": episode.turn_range[1],
+                            "emotion_trend": episode.emotion_trend,
+                            "key_events": ",".join(episode.key_events)
+                        }]
+                    )
+                    logger.info(f"[ThreeLayerMemory] Fixed and updated episode {episode.episode_id}")
+                except Exception as e:
+                    logger.warning(f"[ThreeLayerMemory] Failed to update ChromaDB: {e}")
+
+        except Exception as e:
+            logger.error(f"[ThreeLayerMemory] Failed to fix inconsistent episode: {e}")
+            # 标记为不可信
+            episode.summary = f"[UNRELIABLE] {episode.summary}"
+            logger.warning(f"[ThreeLayerMemory] Marked episode {episode.episode_id} as unreliable")
 
     # ========== Unified Context Retrieval ==========
 

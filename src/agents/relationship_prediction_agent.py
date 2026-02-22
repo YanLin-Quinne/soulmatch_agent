@@ -59,7 +59,7 @@ class RelationshipPredictionAgent:
         conformal_result = await self._conformal_predict_advance(ctx, rel_assessment, sentiment)
 
         # Step 5: t+1预测
-        next_status = self._predict_next_status(rel_assessment["rel_status"])
+        next_status = await self._predict_next_status(ctx, rel_assessment["rel_status"], sentiment, rel_assessment)
 
         # 构建结果
         result = {
@@ -166,6 +166,7 @@ Output format:
 
     async def _social_agents_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
         """使用Social Agents Room进行demographic diverse评估"""
+        assert self.social_agents_room is not None, "social_agents_room should not be None when use_social_agents is True"
 
         relationship_context = {
             "rel_status": ctx.rel_status,
@@ -184,7 +185,7 @@ Output format:
         # 这里简化处理，实际应该让social agents也投票关系类型和状态
         return {
             "rel_type": "love" if consensus.decision == "compatible" else "other",
-            "rel_type_probs": {"love": 0.7, "friendship": 0.2, "other": 0.1} if consensus.decision == "compatible" else {"other": 0.7, "friendship": 0.2, "love": 0.1"},
+            "rel_type_probs": {"love": 0.7, "friendship": 0.2, "other": 0.1} if consensus.decision == "compatible" else {"other": 0.7, "friendship": 0.2, "love": 0.1},
             "rel_status": ctx.rel_status,  # 保持当前状态
             "rel_status_probs": {ctx.rel_status: 0.8},
             "rel_status_confidence": consensus.confidence,
@@ -387,7 +388,7 @@ Constraints:
             can_advance = False
 
         # 7. blockers/catalysts结构化分析
-        blockers, catalysts = await self._analyze_blockers_catalysts(ctx, rel_assessment)
+        blockers, catalysts = await self._analyze_blockers_catalysts(ctx, rel_assessment, sentiment)
 
         return {
             "can_advance": can_advance,
@@ -492,7 +493,7 @@ Respond with JSON:
         else:
             return ["uncertain", "yes"]
 
-    async def _analyze_blockers_catalysts(self, ctx: AgentContext, rel_assessment: Dict) -> tuple:
+    async def _analyze_blockers_catalysts(self, ctx: AgentContext, rel_assessment: Dict, sentiment: Dict) -> tuple:
         """
         结构化分析blockers和catalysts
 
@@ -503,7 +504,7 @@ Respond with JSON:
 Analyze what factors are blocking or catalyzing relationship progression.
 
 Current Status: {rel_assessment["rel_status"]}
-Sentiment: {rel_assessment["sentiment"]}
+Sentiment: {sentiment["label"]}
 Recent Conversation: {ctx.recent_history(5)}
 
 Respond with JSON:
@@ -538,8 +539,19 @@ Respond with JSON:
             logger.warning(f"[RelationshipPredictionAgent] Blockers/catalysts analysis failed: {e}")
             return [], []
 
-    def _predict_next_status(self, current_status: str) -> Dict[str, Any]:
-        """Step 5: t+1预测(简单马尔可夫转移)"""
+    async def _predict_next_status(self, ctx: AgentContext, current_status: str, sentiment: Dict, rel_assessment: Dict) -> Dict[str, Any]:
+        """
+        Step 5: t+1预测 - 动态预测下一状态概率分布
+
+        基于:
+        - 当前关系状态
+        - 信任分数和变化趋势
+        - 情感标签和趋势
+        - 对话质量
+        - 特征匹配度
+
+        使用LLM多次采样获取概率分布
+        """
         status_order = ["stranger", "acquaintance", "crush", "dating", "committed"]
         if current_status not in status_order:
             return {"status": current_status, "probs": {current_status: 1.0}}
@@ -549,12 +561,160 @@ Respond with JSON:
             # 已到最高状态
             return {"status": current_status, "probs": {current_status: 1.0}}
 
-        # 简化转移概率: 70%维持, 30%推进
-        next_status = status_order[idx + 1]
+        # 准备上下文特征
+        trust_score = ctx.extended_features.get("trust_score", 0.5)
+        trust_velocity = ctx.extended_features.get("trust_velocity", 0.0)
+        emotion_trend = self._compute_emotion_trend(ctx)
+
+        # LLM多次采样预测下一状态
+        next_status_dist = await self._sample_next_status_distribution(
+            current_status=current_status,
+            trust_score=trust_score,
+            trust_velocity=trust_velocity,
+            sentiment=sentiment["label"],
+            emotion_trend=emotion_trend,
+            turn_count=ctx.turn_count,
+            n_samples=5
+        )
+
+        # 获取最可能的状态
+        most_likely = max(next_status_dist, key=next_status_dist.get)
+
         return {
-            "status": current_status,  # 最可能维持
-            "probs": {
-                current_status: 0.7,
-                next_status: 0.3,
+            "status": most_likely,
+            "probs": next_status_dist,
+            "features_used": {
+                "trust_score": trust_score,
+                "trust_velocity": trust_velocity,
+                "sentiment": sentiment["label"],
+                "emotion_trend": emotion_trend
             }
         }
+
+    async def _sample_next_status_distribution(
+        self,
+        current_status: str,
+        trust_score: float,
+        trust_velocity: float,
+        sentiment: str,
+        emotion_trend: str,
+        turn_count: int,
+        n_samples: int = 5
+    ) -> Dict[str, float]:
+        """
+        LLM多次采样预测下一状态的概率分布
+
+        Returns:
+            {"stranger": 0.1, "acquaintance": 0.6, "crush": 0.3}
+        """
+        status_order = ["stranger", "acquaintance", "crush", "dating", "committed"]
+        current_idx = status_order.index(current_status)
+
+        # 可能的下一状态：维持当前或推进一步
+        possible_next = [current_status]
+        if current_idx < len(status_order) - 1:
+            possible_next.append(status_order[current_idx + 1])
+
+        prompt = f"""Predict the relationship status in the next 5 conversation turns.
+
+Current Status: {current_status}
+Trust Score: {trust_score:.2f} (velocity: {trust_velocity:+.2f})
+Sentiment: {sentiment}
+Emotion Trend: {emotion_trend}
+Current Turn: {turn_count}
+
+Based on these indicators, will the relationship:
+- Stay at "{current_status}"
+- Advance to "{possible_next[-1] if len(possible_next) > 1 else current_status}"
+
+Consider:
+- Trust score > 0.7 and positive sentiment → likely to advance
+- Trust velocity > 0 and improving emotions → momentum for advancement
+- Trust score < 0.5 or negative sentiment → likely to stay
+- Low turn count → too early to advance
+
+Respond with JSON:
+{{
+    "prediction": "{current_status}" | "{possible_next[-1] if len(possible_next) > 1 else current_status}",
+    "confidence": 0.0-1.0,
+    "reasoning": "brief explanation"
+}}
+"""
+
+        # 多次采样
+        samples = []
+        for _ in range(n_samples):
+            try:
+                response = self.llm.chat(
+                    role=AgentRole.GENERAL,
+                    system="You are a relationship progression predictor.",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.7,
+                    max_tokens=200,
+                    json_mode=True,
+                )
+
+                # 解析JSON
+                response = response.strip()
+                if response.startswith("```json"):
+                    response = response[7:]
+                if response.startswith("```"):
+                    response = response[3:]
+                if response.endswith("```"):
+                    response = response[:-3]
+
+                result = json.loads(response.strip())
+                samples.append(result["prediction"])
+            except Exception as e:
+                logger.warning(f"[RelationshipPredictionAgent] Next status sampling failed: {e}")
+                continue
+
+        # 计算概率分布
+        if not samples:
+            # Fallback: 基于规则
+            if trust_score > 0.7 and sentiment == "positive" and trust_velocity > 0:
+                return {current_status: 0.4, possible_next[-1]: 0.6} if len(possible_next) > 1 else {current_status: 1.0}
+            elif trust_score < 0.5 or sentiment == "negative":
+                return {current_status: 0.9, possible_next[-1]: 0.1} if len(possible_next) > 1 else {current_status: 1.0}
+            else:
+                return {current_status: 0.7, possible_next[-1]: 0.3} if len(possible_next) > 1 else {current_status: 1.0}
+
+        # 统计频率
+        from collections import Counter
+        counts = Counter(samples)
+        total = len(samples)
+
+        # 构建概率分布（只包含可能的状态）
+        distribution = {}
+        for status in possible_next:
+            distribution[status] = counts.get(status, 0) / total
+
+        # 归一化
+        total_prob = sum(distribution.values())
+        if total_prob > 0:
+            distribution = {k: v / total_prob for k, v in distribution.items()}
+
+        return distribution
+
+    def _compute_emotion_trend(self, ctx: AgentContext) -> str:
+        """计算情绪趋势(improving/declining/stable)"""
+        if len(ctx.emotion_history) < 3:
+            return "stable"
+
+        # 简化映射: positive情绪→+1, negative→-1
+        valence_map = {
+            "joy": 1.0, "excitement": 0.8, "interest": 0.6, "trust": 0.7,
+            "sadness": -0.7, "anger": -0.9, "fear": -0.6, "disgust": -0.8,
+            "neutral": 0.0, "surprise": 0.3,
+        }
+
+        recent_3 = ctx.emotion_history[-3:]
+        valences = [valence_map.get(e, 0.0) for e in recent_3]
+
+        # 简单线性趋势
+        if valences[-1] > valences[0] + 0.2:
+            return "improving"
+        elif valences[-1] < valences[0] - 0.2:
+            return "declining"
+        else:
+            return "stable"
