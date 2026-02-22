@@ -27,7 +27,24 @@ class RelationshipPredictionAgent:
 
     def __init__(self, llm_router=None, calibrator: Optional[ConformalCalibrator] = None, use_social_agents: bool = True):
         self.llm = llm_router or router
-        self.calibrator = calibrator or ConformalCalibrator(alpha=0.10)
+
+        # Initialize calibrator and try to load calibration data
+        if calibrator is None:
+            self.calibrator = ConformalCalibrator(alpha=0.10)
+            # Try to load calibration data
+            import os
+            calib_path = "data/training/conformal_calibration.json"
+            if os.path.exists(calib_path):
+                try:
+                    self.calibrator.load(calib_path)
+                    logger.info(f"[RelationshipPredictionAgent] Loaded calibration data from {calib_path}")
+                except Exception as e:
+                    logger.warning(f"[RelationshipPredictionAgent] Failed to load calibration data: {e}")
+            else:
+                logger.warning(f"[RelationshipPredictionAgent] No calibration data found at {calib_path}. Using uncalibrated fallback.")
+        else:
+            self.calibrator = calibrator
+
         self.use_social_agents = use_social_agents
         self.social_agents_room = SocialAgentsRoom(self.llm) if use_social_agents else None
 
@@ -199,79 +216,6 @@ Output format:
             "reasoning": f"Social Agents Consensus (demographic-weighted, {consensus.vote_distribution}): {consensus.reasoning[:200]}...",
             "social_consensus": consensus,  # 保存完整的consensus结果
         }
-
-    async def _discussion_room_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
-        """使用Agent讨论室进行多Agent辩论评估"""
-        context = {
-            "compressed_context": compressed_context,
-            "turn_count": ctx.turn_count,
-            "current_rel_status": ctx.rel_status,
-            "big_five": ctx.predicted_features.get('big_five', {}),
-            "interests": ctx.predicted_features.get('interests', {}),
-            "trust_score": ctx.extended_features.get('trust_score', 0.5),
-        }
-
-        agents = [
-            {
-                "name": "EmotionExpert",
-                "role": AgentRole.EMOTION,
-                "expertise": "Emotional dynamics and sentiment analysis",
-                "system_prompt": "You are an expert in emotional intelligence and relationship dynamics."
-            },
-            {
-                "name": "ValuesExpert",
-                "role": AgentRole.FEATURE,
-                "expertise": "Value alignment and compatibility assessment",
-                "system_prompt": "You are an expert in personality psychology and value systems."
-            },
-            {
-                "name": "BehaviorExpert",
-                "role": AgentRole.GENERAL,
-                "expertise": "Behavioral patterns and interaction quality",
-                "system_prompt": "You are an expert in behavioral psychology and social interactions."
-            }
-        ]
-
-        voting_weights = {
-            "EmotionExpert": 0.4,
-            "ValuesExpert": 0.3,
-            "BehaviorExpert": 0.3
-        }
-
-        topic = f"""Based on the context, assess:
-1. Relationship type (love/friendship/family/other)
-2. Relationship status (stranger/acquaintance/crush/dating/committed)
-
-Output JSON:
-{{
-  "rel_type": "love|friendship|family|other",
-  "rel_type_probs": {{"love": 0.x, "friendship": 0.y, ...}},
-  "rel_status": "stranger|acquaintance|crush|dating|committed",
-  "rel_status_probs": {{"stranger": 0.x, "acquaintance": 0.y, ...}}
-}}
-
-Constraint: rel_status can only advance or stay (current: {ctx.rel_status})"""
-
-        consensus = await self.discussion_room.discuss(topic, context, agents, voting_weights)
-
-        # 解析consensus.decision为JSON
-        try:
-            import re
-            clean_decision = re.sub(r'^```json\s*|\s*```$', '', consensus.decision.strip(), flags=re.MULTILINE)
-            result = json.loads(clean_decision)
-            result["reasoning"] = consensus.reasoning
-
-            # 单调约束
-            status_order = ["stranger", "acquaintance", "crush", "dating", "committed"]
-            current_idx = status_order.index(ctx.rel_status) if ctx.rel_status in status_order else 0
-            predicted_idx = status_order.index(result["rel_status"]) if result["rel_status"] in status_order else 0
-            if predicted_idx < current_idx:
-                result["rel_status"] = ctx.rel_status
-
-            return result
-        except Exception as e:
-            logger.warning(f"[RelationshipPredictionAgent] 讨论室结果解析失败: {e}")
-            return await self._single_llm_assessment(ctx, compressed_context)
 
     async def _single_llm_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
         """原有的单LLM模拟多角色方法(fallback)"""
