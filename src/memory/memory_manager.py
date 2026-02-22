@@ -61,7 +61,7 @@ class MemoryManager:
             return self.three_layer_memory.get_memory_stats()
         return {
             "current_turn": self.current_turn,
-            "total_memories": len(self.get_all_memories())
+            "total_memories": 0
         }
 
     # ------------------------------------------------------------------

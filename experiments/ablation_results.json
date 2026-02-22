@@ -1,0 +1,23 @@
+{
+  "baseline": {
+    "use_three_layer": false,
+    "total_turns": 100,
+    "episodic_memories": 0,
+    "semantic_memories": 0,
+    "inconsistencies_detected": 0,
+    "compression_ratio": 0.0
+  },
+  "treatment": {
+    "use_three_layer": true,
+    "total_turns": 100,
+    "episodic_memories": 10,
+    "semantic_memories": 2,
+    "inconsistencies_detected": 0,
+    "compression_ratio": 1.0
+  },
+  "improvement": {
+    "compression_achieved": true,
+    "episodic_memories_created": true,
+    "semantic_memories_created": true
+  }
+}

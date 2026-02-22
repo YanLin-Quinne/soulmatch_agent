@@ -1,0 +1,14 @@
+{
+  "hallucination_measurement": {
+    "total_episodes": 1,
+    "inconsistencies_detected": 0,
+    "hallucinations_found": [],
+    "grounding_accuracy": 1.0,
+    "false_positive_rate": 0.0
+  },
+  "anti_hallucination_effectiveness": {
+    "grounding_enforced": true,
+    "consistency_checks_active": true,
+    "turn_references_present": true
+  }
+}

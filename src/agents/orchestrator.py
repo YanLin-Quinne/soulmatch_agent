@@ -43,7 +43,7 @@ class OrchestratorAgent:
         self.current_bot: Optional[PersonaAgent] = None
 
         self.feature_agent = FeaturePredictionAgent(user_id)
-        self.memory_manager = MemoryManager(user_id)
+        self.memory_manager = MemoryManager(user_id, use_three_layer=True)
         self.emotion_agent = EmotionAgent()
         self.scam_agent = ScamDetectionAgent(use_semantic=True)
         self.question_agent = QuestionStrategyAgent()
