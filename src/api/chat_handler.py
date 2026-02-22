@@ -43,7 +43,11 @@ class ChatHandler:
                     "success": False,
                     "error": "Failed to create session"
                 }
-            
+
+            # Update preferred_bot_id if provided (handles session reuse case)
+            if bot_id:
+                orchestrator.preferred_bot_id = bot_id
+
             # Start new conversation with specified bot_id
             result = orchestrator.start_new_conversation(bot_id=bot_id)
             
