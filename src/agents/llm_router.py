@@ -275,12 +275,33 @@ def _call_gemini(
 ) -> tuple[str, int, int]:
     """Google Gemini call via google-genai SDK."""
     from google.genai import types
+    from loguru import logger
 
     # Convert messages to Gemini content format
     contents = []
-    for msg in messages:
-        role = "user" if msg["role"] == "user" else "model"
-        contents.append(types.Content(role=role, parts=[types.Part(text=msg["content"])]))
+    for i, msg in enumerate(messages):
+        try:
+            if not isinstance(msg, dict):
+                logger.error(f"Gemini: Message at index {i} is not a dict: {type(msg)} - {msg}")
+                raise ValueError(f"Message at index {i} is not a dict: {type(msg)}")
+            if "role" not in msg:
+                logger.error(f"Gemini: Message at index {i} missing 'role' key. Message: {msg}")
+                raise ValueError(f"Message at index {i} missing 'role' key")
+            if "content" not in msg:
+                logger.error(f"Gemini: Message at index {i} missing 'content' key. Message: {msg}")
+                raise ValueError(f"Message at index {i} missing 'content' key")
+
+            # Ensure content is a string
+            content = msg["content"]
+            if not isinstance(content, str):
+                logger.warning(f"Gemini: Converting non-string content to string at index {i}: {type(content)}")
+                content = str(content)
+
+            role = "user" if msg["role"] == "user" else "model"
+            contents.append(types.Content(role=role, parts=[types.Part(text=content)]))
+        except Exception as e:
+            logger.error(f"Gemini: Error processing message {i}: {e}. Full messages list: {messages}")
+            raise
 
     resp = _Clients.gemini().models.generate_content(
         model=model_id,
@@ -291,8 +312,8 @@ def _call_gemini(
             max_output_tokens=max_tokens,
         ),
     )
-    input_tok = resp.usage_metadata.prompt_token_count or 0
-    output_tok = resp.usage_metadata.candidates_token_count or 0
+    input_tok = (resp.usage_metadata.prompt_token_count if resp.usage_metadata else 0) or 0
+    output_tok = (resp.usage_metadata.candidates_token_count if resp.usage_metadata else 0) or 0
     text = resp.text or ""
     if not text:
         raise ValueError("Gemini returned empty text")

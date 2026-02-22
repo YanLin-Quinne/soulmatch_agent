@@ -1,5 +1,8 @@
 """FastAPI main application - SoulMatch backend API"""
 
+import nest_asyncio
+nest_asyncio.apply()
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 

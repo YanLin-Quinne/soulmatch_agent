@@ -40,8 +40,20 @@ class PersonaAgent:
         self.conversation_history.add_user_message(message)
 
         try:
-            system = self._build_system_prompt(ctx)
+            # Detect language and adjust system prompt
+            language_hint = self._detect_language(message)
+            system = self._build_system_prompt(ctx, language_hint)
             messages = self.conversation_history.to_api_format()
+
+            # Debug logging
+            logger.debug(f"[{self.persona.profile_id}] Generating response with {len(messages)} messages")
+            for i, msg in enumerate(messages):
+                if not isinstance(msg, dict):
+                    logger.error(f"[{self.persona.profile_id}] Message {i} is not a dict: {type(msg)} = {msg}")
+                elif "role" not in msg:
+                    logger.error(f"[{self.persona.profile_id}] Message {i} missing 'role': {msg}")
+                elif "content" not in msg:
+                    logger.error(f"[{self.persona.profile_id}] Message {i} missing 'content': {msg}")
 
             # Use tool executor when tools enabled and registry has tools
             if self.tool_executor and tool_registry.list_tools():
@@ -80,9 +92,19 @@ class PersonaAgent:
 
         except Exception as e:
             logger.error(f"Failed to generate response: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             fallback = self._get_fallback_response()
             self.conversation_history.add_assistant_message(fallback)
             return fallback
+
+    def _detect_language(self, message: str) -> str:
+        """Detect if message is in Chinese or English."""
+        # Simple heuristic: if more than 30% of characters are Chinese, treat as Chinese
+        chinese_chars = sum(1 for c in message if '\u4e00' <= c <= '\u9fff')
+        if chinese_chars > len(message) * 0.3:
+            return "chinese"
+        return "english"
 
     def generate_greeting(self) -> str:
         """Generate an opening message."""
@@ -115,9 +137,25 @@ class PersonaAgent:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _build_system_prompt(self, ctx: Optional[AgentContext]) -> str:
+    def _build_system_prompt(self, ctx: Optional[AgentContext], language: str = "english") -> str:
         """Compose the full system prompt by injecting context blocks."""
         parts = [self.persona.system_prompt]
+
+        # Add language-specific instructions
+        if language == "chinese":
+            parts.append(
+                "[语言指令]\n"
+                "用户正在使用中文交流。请用自然、地道的中文回复。\n"
+                "保持你的个性和风格，但要符合中文对话习惯。\n"
+                "避免使用破折号（—）、分号或过于文学化的标点符号。"
+            )
+        else:
+            parts.append(
+                "[Language Instructions]\n"
+                "Keep your responses natural and conversational. \n"
+                "Avoid em dashes (—), semicolons, or overly literary punctuation. \n"
+                "Write like you're texting a friend, not writing a novel."
+            )
 
         if ctx:
             memory_block = ctx.memory_context_block()
