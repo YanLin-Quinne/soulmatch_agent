@@ -403,6 +403,22 @@ class LLMRouter:
         Raises:
             RuntimeError: If all providers in the fallback chain fail.
         """
+        # Validate messages format before processing
+        for i, msg in enumerate(messages):
+            if not isinstance(msg, dict):
+                logger.error(f"[LLMRouter] Message {i} is not dict: {type(msg)} - {msg}")
+                raise ValueError(f"Message {i} must be dict, got {type(msg)}")
+            if "role" not in msg:
+                logger.error(f"[LLMRouter] Message {i} missing 'role': {msg}")
+                raise ValueError(f"Message {i} missing 'role' key")
+            if "content" not in msg:
+                logger.error(f"[LLMRouter] Message {i} missing 'content': {msg}")
+                raise ValueError(f"Message {i} missing 'content' key")
+            # Ensure content is string
+            if not isinstance(msg["content"], str):
+                logger.warning(f"[LLMRouter] Converting message {i} content to string: {type(msg['content'])}")
+                msg["content"] = str(msg["content"])
+
         if json_mode:
             system = system + "\n\nIMPORTANT: Respond with valid JSON only, no markdown fences."
 

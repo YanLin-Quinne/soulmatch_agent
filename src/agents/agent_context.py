@@ -19,7 +19,7 @@ class AgentContext:
     user_id: str = ""
     bot_id: str = ""
     turn_count: int = 0
-    conversation_history: list[dict[str, str]] = field(default_factory=list)
+    conversation_history: list[dict] = field(default_factory=list)
 
     # --- Current turn input ---
     user_message: str = ""
@@ -98,6 +98,12 @@ class AgentContext:
     # -----------------------------------------------------------------
 
     def add_to_history(self, speaker: str, message: str):
+        from loguru import logger
+        # Ensure message is string
+        if not isinstance(message, str):
+            logger.warning(f"[AgentContext] Converting non-string message to string: {type(message)}")
+            message = str(message)
+
         self.conversation_history.append({
             "speaker": speaker,
             "message": message,
@@ -107,15 +113,27 @@ class AgentContext:
         if len(self.conversation_history) > 50:
             self.conversation_history = self.conversation_history[-50:]
 
-    def recent_history(self, n: int = 10) -> list[dict[str, str]]:
+    def recent_history(self, n: int = 10) -> list[dict]:
         return self.conversation_history[-n:]
 
     def history_as_messages(self) -> list[dict[str, str]]:
         """Convert to OpenAI/Anthropic message format."""
+        from loguru import logger
         out = []
-        for h in self.conversation_history:
-            role = "user" if h["speaker"] == "user" else "assistant"
-            out.append({"role": role, "content": h["message"]})
+        for i, h in enumerate(self.conversation_history):
+            try:
+                role = "user" if h["speaker"] == "user" else "assistant"
+                message = h["message"]
+
+                # Ensure message is string
+                if not isinstance(message, str):
+                    logger.warning(f"[AgentContext] Converting non-string message to string at index {i}: {type(message)}")
+                    message = str(message)
+
+                out.append({"role": role, "content": message})
+            except Exception as e:
+                logger.error(f"[AgentContext] Error processing history item {i}: {e}. Item: {h}")
+                continue
         return out
 
     def memory_context_block(self) -> str:

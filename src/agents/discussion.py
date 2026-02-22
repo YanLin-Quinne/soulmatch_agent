@@ -148,7 +148,7 @@ class DiscussionEngine:
 
         recent = ctx.recent_history(4)
         if recent:
-            history_lines = [f"  {h['role']}: {h['content'][:100]}" for h in recent]
+            history_lines = [f"  {h['speaker']}: {h['message'][:100]}" for h in recent]
             parts.append("Recent conversation:\n" + "\n".join(history_lines))
 
         return "\n".join(parts)
