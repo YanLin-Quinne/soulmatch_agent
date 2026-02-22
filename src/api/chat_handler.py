@@ -89,7 +89,7 @@ class ChatHandler:
                 }
             
             # Process message through orchestrator
-            result = orchestrator.process_user_message(message.strip())
+            result = await orchestrator.process_user_message(message.strip())
             
             logger.info(f"Processed message for user {user_id}: turn {result.get('turn', 0)}")
             return result

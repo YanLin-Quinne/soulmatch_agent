@@ -112,7 +112,7 @@ class OrchestratorAgent:
     # Process user message
     # ------------------------------------------------------------------
 
-    def process_user_message(self, message: str) -> Dict[str, Any]:
+    async def process_user_message(self, message: str) -> Dict[str, Any]:
         if not self.current_bot:
             return {"success": False, "error": "No active conversation. Call start_new_conversation() first."}
 
@@ -153,15 +153,7 @@ class OrchestratorAgent:
 
         # --- Phase 2.5: Relationship prediction (every 5 turns + milestones) ---
         if self.ctx.turn_count % 5 == 0 or self.ctx.turn_count in [10, 30]:
-            # 同步调用async函数
-            import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            rel_result = loop.run_until_complete(self.relationship_agent.execute(self.ctx))
+            rel_result = await self.relationship_agent.execute(self.ctx)
             if rel_result:
                 response["relationship_prediction"] = {
                     "rel_status": rel_result.get("rel_status"),
