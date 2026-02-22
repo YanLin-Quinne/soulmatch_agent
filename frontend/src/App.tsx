@@ -258,7 +258,7 @@ function App() {
       relationship_goals: 'unsure', personality_summary: '',
     });
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: 'start' }));
+      ws.send(JSON.stringify({ action: 'start', bot_id: char.id }));
     }
   };
 

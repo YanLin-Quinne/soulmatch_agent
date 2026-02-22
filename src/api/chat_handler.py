@@ -18,23 +18,24 @@ class ChatHandler:
         """Initialize chat handler"""
         logger.info("ChatHandler initialized")
     
-    async def handle_start_conversation(self, user_id: str) -> Dict[str, Any]:
+    async def handle_start_conversation(self, user_id: str, bot_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Start a new conversation for a user
-        
+
         Args:
             user_id: User identifier
-        
+            bot_id: Optional bot profile ID to use (if None, random selection)
+
         Returns:
             Dict with conversation start result
         """
         try:
             # Get or create session
             orchestrator = session_manager.get_session(user_id)
-            
+
             if not orchestrator:
                 # Create new session if doesn't exist
-                session_manager.create_session(user_id)
+                session_manager.create_session(user_id, bot_id=bot_id)
                 orchestrator = session_manager.get_session(user_id)
             
             if not orchestrator:

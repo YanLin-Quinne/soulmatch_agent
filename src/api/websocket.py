@@ -119,7 +119,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             # Handle different actions
             if action == "start":
                 # Start a new conversation
-                result = await chat_handler.handle_start_conversation(user_id)
+                bot_id = message.get("bot_id")  # Optional: if provided, use specific bot
+                result = await chat_handler.handle_start_conversation(user_id, bot_id=bot_id)
                 
                 if result.get("success"):
                     await manager.send_message(user_id, {

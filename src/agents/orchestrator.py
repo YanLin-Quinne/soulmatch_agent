@@ -1,6 +1,7 @@
 """Orchestrator Agent — coordinates all sub-agents with shared context and parallel execution."""
 
 import asyncio
+import random
 from typing import Dict, List, Optional, Any
 from loguru import logger
 
@@ -34,8 +35,9 @@ class OrchestratorAgent:
       5. [sequential] Memory store
     """
 
-    def __init__(self, user_id: str, bot_personas_pool: PersonaAgentPool):
+    def __init__(self, user_id: str, bot_personas_pool: PersonaAgentPool, bot_id: Optional[str] = None):
         self.user_id = user_id
+        self.preferred_bot_id = bot_id  # Store preferred bot_id if provided
 
         self.state_machine = ConversationStateMachine(user_id)
 
@@ -71,25 +73,38 @@ class OrchestratorAgent:
         if not bot_summaries:
             return {"success": False, "error": "No bots available"}
 
-        user_features = self.feature_agent.get_feature_summary()
-
-        if not user_features.get("personality"):
-            import random
-            selected_bot_id = random.choice(list(bot_summaries.keys()))
-            compatibility_score = 0.5
-            match_explanation = "Let's see if you two click!"
-        else:
-            user_vector = self._convert_features_to_vector(self.feature_agent.predicted_features)
-            bot_personas = [self.bot_pool.get_agent(bid).persona for bid in bot_summaries]
-            recs = self.matching_engine.recommend_top_n(user_features=user_vector, candidates=bot_personas, n=1)
-            if recs:
-                selected_bot_id = recs[0]["profile_id"]
-                compatibility_score = recs[0]["score"]
-                match_explanation = recs[0]["explanation"]
+        # If preferred_bot_id is provided, use it directly
+        if self.preferred_bot_id:
+            if self.preferred_bot_id in bot_summaries:
+                selected_bot_id = self.preferred_bot_id
+                compatibility_score = 0.85  # High score for user-selected bot
+                match_explanation = "You selected this match!"
+                logger.info(f"Using user-selected bot: {selected_bot_id}")
             else:
-                selected_bot_id = list(bot_summaries.keys())[0]
+                logger.warning(f"Preferred bot_id {self.preferred_bot_id} not found, falling back to random")
+                selected_bot_id = random.choice(list(bot_summaries.keys()))
                 compatibility_score = 0.5
-                match_explanation = "Let's give this a try!"
+                match_explanation = "Let's see if you two click!"
+        else:
+            # Original logic: use matching engine or random selection
+            user_features = self.feature_agent.get_feature_summary()
+
+            if not user_features.get("personality"):
+                selected_bot_id = random.choice(list(bot_summaries.keys()))
+                compatibility_score = 0.5
+                match_explanation = "Let's see if you two click!"
+            else:
+                user_vector = self._convert_features_to_vector(self.feature_agent.predicted_features)
+                bot_personas = [self.bot_pool.get_agent(bid).persona for bid in bot_summaries]
+                recs = self.matching_engine.recommend_top_n(user_features=user_vector, candidates=bot_personas, n=1)
+                if recs:
+                    selected_bot_id = recs[0]["profile_id"]
+                    compatibility_score = recs[0]["score"]
+                    match_explanation = recs[0]["explanation"]
+                else:
+                    selected_bot_id = list(bot_summaries.keys())[0]
+                    compatibility_score = 0.5
+                    match_explanation = "Let's give this a try!"
 
         self.current_bot = self.bot_pool.get_agent(selected_bot_id)
         self.ctx.bot_id = selected_bot_id

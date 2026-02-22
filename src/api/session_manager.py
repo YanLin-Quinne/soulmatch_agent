@@ -50,9 +50,13 @@ class SessionManager:
         self.bot_personas_pool = pool
         logger.info(f"Bot personas pool set with {len(pool)} personas")
     
-    def create_session(self, user_id: str) -> str:
+    def create_session(self, user_id: str, bot_id: Optional[str] = None) -> str:
         """
         Create a new session for a user.
+
+        Args:
+            user_id: User identifier
+            bot_id: Optional bot profile ID to use (if None, random selection)
 
         Returns:
             session_id (same as user_id in this simple implementation)
@@ -68,6 +72,7 @@ class SessionManager:
         orchestrator = OrchestratorAgent(
             user_id=user_id,
             bot_personas_pool=self.bot_personas_pool,
+            bot_id=bot_id,
         )
         
         self.sessions[user_id] = orchestrator
