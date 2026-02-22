@@ -31,40 +31,13 @@ Multi-agent relationship prediction system with conformal uncertainty quantifica
 ## Tech Stack
 
 - Backend: FastAPI + Python 3.11
-- Frontend: React + TypeScript + Vite
+- Frontend: React + TypeScript
 - LLM: GPT-5.2, Gemini Flash, DeepSeek
 - Memory: ChromaDB
 - Calibration: Conformal Prediction (APS)
-
-## Configuration
-
-Set environment variables in HuggingFace Space settings:
-
-```bash
-OPENAI_API_KEY=your_key_here
-GEMINI_API_KEY=your_key_here
-DEEPSEEK_API_KEY=your_key_here
-```
-
-## Local Development
-
-```bash
-# Backend
-pip install -r requirements.txt
-uvicorn src.api.main:app --reload
-
-# Frontend
-cd frontend
-npm install
-npm run dev
-```
 
 ## Paper
 
 Based on research combining:
 - Social Agents (ICLR 2026): Demographic diversity for wisdom of crowds
 - Conformal Prediction: Uncertainty quantification with coverage guarantees
-
-## License
-
-MIT

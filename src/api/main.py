@@ -5,7 +5,8 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from loguru import logger
 
@@ -376,10 +377,10 @@ async def list_tools():
     }
 
 
-@app.get("/", tags=["System"])
-async def root():
+@app.get("/api", tags=["System"])
+async def api_root():
     """
-    Root endpoint - API info
+    API info endpoint
     """
     return {
         "name": "SoulMatch API",
@@ -393,6 +394,40 @@ async def root():
             "tools": "/api/v1/admin/tools",
         }
     }
+
+
+# ============================================
+# Static Files (Frontend)
+# ============================================
+
+# Mount static files if frontend build exists
+frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
+
+    @app.get("/")
+    async def serve_frontend():
+        """Serve frontend index.html"""
+        return FileResponse(frontend_dist / "index.html")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve SPA - return index.html for all non-API routes"""
+        if full_path.startswith("api/") or full_path.startswith("ws/") or full_path == "health" or full_path == "docs":
+            raise HTTPException(status_code=404)
+        file_path = frontend_dist / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(frontend_dist / "index.html")
+else:
+    @app.get("/")
+    async def root():
+        """Root endpoint when frontend not built"""
+        return {
+            "name": "SoulMatch API",
+            "version": "2.0.0",
+            "message": "Frontend not built. Run: cd frontend && npm install && npm run build"
+        }
 
 
 # ============================================
