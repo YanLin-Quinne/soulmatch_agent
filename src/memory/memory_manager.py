@@ -24,11 +24,15 @@ class MemoryManager:
         self.conversation_history: List[dict] = []
         self.current_turn: int = 0
 
+        # Import router and AgentRole at runtime to avoid circular dependency
+        from src.agents.llm_router import router, AgentRole
+        self.router = router
+        self.AgentRole = AgentRole
+
         # Three-layer memory system (lazy import to avoid circular dependency)
         self.three_layer_memory: Optional['ThreeLayerMemory'] = None
         if use_three_layer:
             from src.memory.three_layer_memory import ThreeLayerMemory
-            from src.agents.llm_router import router
             self.three_layer_memory = ThreeLayerMemory(llm_router=router)
 
     def add_conversation_turn(self, speaker: str, message: str):
@@ -101,8 +105,8 @@ class MemoryManager:
         )
 
         try:
-            text = router.chat(
-                role=AgentRole.MEMORY,
+            text = self.router.chat(
+                role=self.AgentRole.MEMORY,
                 system="You are a memory management agent for a dating app. Decide what to remember.",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,

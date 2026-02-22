@@ -158,10 +158,16 @@ class ChromaDBClient:
         
         # Convert to Memory objects
         memories = []
-        
-        ids = results.get("ids", [[]])[0] if "ids" in results else results.get("ids", [])
-        documents = results.get("documents", [[]])[0] if "documents" in results else results.get("documents", [])
-        metadatas = results.get("metadatas", [[]])[0] if "metadatas" in results else results.get("metadatas", [])
+
+        # Handle empty results safely
+        ids_raw = results.get("ids", [])
+        docs_raw = results.get("documents", [])
+        metas_raw = results.get("metadatas", [])
+
+        # ChromaDB returns nested lists for query, flat lists for get
+        ids = ids_raw[0] if ids_raw and isinstance(ids_raw[0], list) else ids_raw
+        documents = docs_raw[0] if docs_raw and isinstance(docs_raw[0], list) else docs_raw
+        metadatas = metas_raw[0] if metas_raw and isinstance(metas_raw[0], list) else metas_raw
         
         for memory_id, content, metadata in zip(ids, documents, metadatas):
             # Parse tags
