@@ -83,14 +83,15 @@ MODELS: dict[str, ModelSpec] = {
 
 # Default routing: role → ordered list of model keys to try (2026 Latest Models)
 MODEL_ROUTING: dict[AgentRole, list[str]] = {
-    AgentRole.PERSONA:  ["claude-opus-4", "gpt-5", "deepseek-reasoner", "qwen-3.5-plus"],
-    AgentRole.EMOTION:  ["gemini-flash", "claude-haiku", "gpt-4o-mini", "qwen-turbo"],
-    AgentRole.FEATURE:  ["claude-opus-4", "gpt-5", "deepseek-reasoner", "qwen-3.5-plus"],
-    AgentRole.SCAM:     ["claude-haiku", "gpt-4o-mini", "gemini-flash", "deepseek-chat"],
-    AgentRole.MEMORY:   ["claude-haiku", "gpt-4o-mini", "gemini-flash", "qwen-turbo"],
-    AgentRole.QUESTION: ["gemini-3-pro", "claude-haiku", "deepseek-chat", "qwen-turbo"],
-    AgentRole.GENERAL:  ["claude-haiku", "gpt-4o-mini", "gemini-flash", "deepseek-chat"],
+    AgentRole.PERSONA:  ["claude-opus-4", "gpt-5", "claude-sonnet", "deepseek-reasoner"],
+    AgentRole.EMOTION:  ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
+    AgentRole.FEATURE:  ["claude-opus-4", "gpt-5", "claude-sonnet", "deepseek-reasoner"],
+    AgentRole.SCAM:     ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
+    AgentRole.MEMORY:   ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
+    AgentRole.QUESTION: ["claude-opus-4", "claude-sonnet", "gemini-3-pro", "deepseek-chat"],
+    AgentRole.GENERAL:  ["claude-opus-4", "claude-haiku", "gpt-4o-mini", "gemini-flash"],
 }
+
 
 
 # ---------------------------------------------------------------------------
