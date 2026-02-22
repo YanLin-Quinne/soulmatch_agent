@@ -378,7 +378,7 @@ Constraints:
             "conformal_result": conformal_result,
         }
 
-    async def _sample_advance_distribution(self, ctx: AgentContext, rel_assessment: Dict, sentiment: Dict, n_samples: int = 5) -> Dict[str, float]:
+    async def _sample_advance_distribution(self, ctx: AgentContext, rel_assessment: Dict, sentiment: Dict, n_samples: int = 2) -> Dict[str, float]:
         """
         LLM多次采样获取can_advance的softmax分布
 
@@ -578,7 +578,7 @@ Respond with JSON:
         sentiment: str,
         emotion_trend: str,
         turn_count: int,
-        n_samples: int = 5
+        n_samples: int = 2
     ) -> Dict[str, float]:
         """
         LLM多次采样预测下一状态的概率分布

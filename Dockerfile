@@ -29,4 +29,4 @@ COPY data/ data/
 EXPOSE 7860
 
 # Start backend (HuggingFace Spaces uses port 7860)
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "7860", "--ws-ping-interval", "20", "--ws-ping-timeout", "30"]
