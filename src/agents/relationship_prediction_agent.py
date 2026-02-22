@@ -175,21 +175,28 @@ Output format:
             "turn_count": ctx.turn_count,
         }
 
-        # 调用Social Agents Room
+        # 提取用户人口统计学信息用于demographic similarity weighting
+        user_demographics = {
+            "age": ctx.extended_features.get("age"),
+            "gender": ctx.extended_features.get("sex"),  # Note: "sex" in features maps to "gender" in demographics
+            "relationship_status": ctx.extended_features.get("relationship_status", "single")
+        }
+
+        # 调用Social Agents Room with demographic weighting
         consensus = await self.social_agents_room.assess_relationship(
             conversation_summary=compressed_context,
-            relationship_context=relationship_context
+            relationship_context=relationship_context,
+            user_demographics=user_demographics
         )
 
-        # 从consensus中提取关系类型和状态
-        # 这里简化处理，实际应该让social agents也投票关系类型和状态
+        # 使用Social Agents的投票结果（而不是硬编码）
         return {
-            "rel_type": "love" if consensus.decision == "compatible" else "other",
-            "rel_type_probs": {"love": 0.7, "friendship": 0.2, "other": 0.1} if consensus.decision == "compatible" else {"other": 0.7, "friendship": 0.2, "love": 0.1},
-            "rel_status": ctx.rel_status,  # 保持当前状态
-            "rel_status_probs": {ctx.rel_status: 0.8},
+            "rel_type": consensus.rel_type,
+            "rel_type_probs": consensus.rel_type_probs,
+            "rel_status": consensus.rel_status,  # 使用投票结果，而不是ctx.rel_status
+            "rel_status_probs": consensus.rel_status_probs,
             "rel_status_confidence": consensus.confidence,
-            "reasoning": f"Social Agents Consensus ({consensus.vote_distribution}): {consensus.reasoning[:200]}...",
+            "reasoning": f"Social Agents Consensus (demographic-weighted, {consensus.vote_distribution}): {consensus.reasoning[:200]}...",
             "social_consensus": consensus,  # 保存完整的consensus结果
         }
 

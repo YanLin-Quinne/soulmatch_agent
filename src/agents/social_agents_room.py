@@ -58,7 +58,10 @@ Judge whether this relationship has potential based on what YOU believe makes re
 class SocialAgentVote:
     """A single social agent's vote on relationship compatibility"""
     agent_name: str
+    agent_demographics: Dict[str, Any]  # age, gender, relationship_status for similarity calculation
     vote: str  # "compatible", "incompatible", "uncertain"
+    rel_status: str  # "stranger", "acquaintance", "crush", "dating", "committed"
+    rel_type: str  # "love", "friendship", "family", "other"
     confidence: float  # 0.0-1.0
     reasoning: str  # Why they voted this way based on their experience
     key_factors: List[str]  # What factors influenced their decision
@@ -66,8 +69,12 @@ class SocialAgentVote:
 
 @dataclass
 class SocialConsensus:
-    """Consensus reached by social agents through voting"""
+    """Consensus reached by social agents through demographic-weighted voting"""
     decision: str  # "compatible", "incompatible", "uncertain"
+    rel_status: str  # Consensus relationship status
+    rel_type: str  # Consensus relationship type
+    rel_status_probs: Dict[str, float]  # Probability distribution over statuses
+    rel_type_probs: Dict[str, float]  # Probability distribution over types
     confidence: float  # Weighted average confidence
     votes: List[SocialAgentVote]
     vote_distribution: Dict[str, int]  # {"compatible": 3, "incompatible": 1, "uncertain": 1}
@@ -145,6 +152,7 @@ class SocialAgentsRoom:
         self,
         conversation_summary: str,
         relationship_context: Dict[str, Any],
+        user_demographics: Optional[Dict[str, Any]] = None,
         custom_agents: Optional[List[SocialPersona]] = None
     ) -> SocialConsensus:
         """
@@ -157,6 +165,10 @@ class SocialAgentsRoom:
                 - sentiment: Overall sentiment
                 - trust_score: Trust level
                 - turn_count: Number of conversation turns
+            user_demographics: User's demographic info for similarity weighting:
+                - age: int
+                - gender: str
+                - relationship_status: str
             custom_agents: Optional custom social agents (default: use built-in 5)
 
         Returns:
@@ -169,10 +181,10 @@ class SocialAgentsRoom:
         # Collect votes from all agents in parallel
         votes = await self._collect_votes(conversation_summary, relationship_context, agents)
 
-        # Reach consensus through voting
-        consensus = self._reach_consensus(votes)
+        # Reach consensus through demographic-weighted voting
+        consensus = self._reach_consensus(votes, user_demographics)
 
-        logger.info(f"[SocialAgentsRoom] Consensus: {consensus.decision} (confidence: {consensus.confidence:.2f})")
+        logger.info(f"[SocialAgentsRoom] Consensus: {consensus.decision} (rel_status={consensus.rel_status}, confidence: {consensus.confidence:.2f})")
 
         return consensus
 
@@ -207,7 +219,7 @@ class SocialAgentsRoom:
     ) -> SocialAgentVote:
         """Get a single agent's vote based on their demographic background"""
 
-        prompt = f"""You are evaluating whether two people are compatible for a romantic relationship.
+        prompt = f"""You are evaluating a romantic relationship between two people.
 
 Conversation Summary:
 {conversation_summary}
@@ -219,7 +231,11 @@ Current Status:
 - Conversation Turns: {context.get('turn_count', 0)}
 
 Based on YOUR life experience as a {agent.age}-year-old {agent.gender} {agent.occupation} who is {agent.relationship_status},
-and YOUR values ({', '.join(agent.values)}), do you think this relationship has potential?
+and YOUR values ({', '.join(agent.values)}), evaluate this relationship:
+
+1. Are they compatible? (compatible/incompatible/uncertain)
+2. What relationship stage are they at? (stranger/acquaintance/crush/dating/committed)
+3. What type of relationship is this? (love/friendship/family/other)
 
 Consider:
 - What would YOU look for in a relationship at your age and life stage?
@@ -229,6 +245,8 @@ Consider:
 Respond with JSON:
 {{
     "vote": "compatible" | "incompatible" | "uncertain",
+    "rel_status": "stranger" | "acquaintance" | "crush" | "dating" | "committed",
+    "rel_type": "love" | "friendship" | "family" | "other",
     "confidence": 0.0-1.0,
     "reasoning": "Explain based on YOUR background and values",
     "key_factors": ["factor1", "factor2", "factor3"]
@@ -258,7 +276,14 @@ Respond with JSON:
 
             return SocialAgentVote(
                 agent_name=agent.name,
+                agent_demographics={
+                    "age": agent.age,
+                    "gender": agent.gender,
+                    "relationship_status": agent.relationship_status
+                },
                 vote=result["vote"],
+                rel_status=result.get("rel_status", context.get("rel_status", "stranger")),
+                rel_type=result.get("rel_type", "other"),
                 confidence=result["confidence"],
                 reasoning=result["reasoning"],
                 key_factors=result.get("key_factors", [])
@@ -269,18 +294,38 @@ Respond with JSON:
             # Return uncertain vote as fallback
             return SocialAgentVote(
                 agent_name=agent.name,
+                agent_demographics={
+                    "age": agent.age,
+                    "gender": agent.gender,
+                    "relationship_status": agent.relationship_status
+                },
                 vote="uncertain",
+                rel_status=context.get("rel_status", "stranger"),
+                rel_type="other",
                 confidence=0.5,
                 reasoning=f"Vote failed: {str(e)}",
                 key_factors=[]
             )
 
-    def _reach_consensus(self, votes: List[SocialAgentVote]) -> SocialConsensus:
-        """Reach consensus through majority voting with confidence weighting"""
+    def _reach_consensus(
+        self,
+        votes: List[SocialAgentVote],
+        user_demographics: Optional[Dict[str, Any]] = None
+    ) -> SocialConsensus:
+        """
+        Reach consensus through demographic-weighted voting.
+        
+        Based on ICLR 2026 Social Agents paper: agents with similar demographics
+        to the user have higher voting weight.
+        """
 
         if not votes:
             return SocialConsensus(
                 decision="uncertain",
+                rel_status="stranger",
+                rel_type="other",
+                rel_status_probs={"stranger": 1.0},
+                rel_type_probs={"other": 1.0},
                 confidence=0.0,
                 votes=[],
                 vote_distribution={},
@@ -288,41 +333,139 @@ Respond with JSON:
                 demographic_insights={}
             )
 
-        # Count votes
+        # Calculate demographic similarity weights for each agent
+        weights = []
+        for vote in votes:
+            if user_demographics:
+                # Create temporary agent for similarity calculation
+                temp_agent = type('obj', (object,), vote.agent_demographics)()
+                similarity = self._calculate_demographic_similarity(temp_agent, user_demographics)
+                weights.append(similarity)
+            else:
+                # Equal weights if no user demographics available
+                weights.append(1.0)
+
+        # Normalize weights
+        total_weight = sum(weights)
+        if total_weight > 0:
+            weights = [w / total_weight for w in weights]
+        else:
+            weights = [1.0 / len(votes)] * len(votes)
+
+        # Weighted voting for compatibility
+        vote_scores = {"compatible": 0.0, "incompatible": 0.0, "uncertain": 0.0}
         vote_counts = {"compatible": 0, "incompatible": 0, "uncertain": 0}
-        weighted_scores = {"compatible": 0.0, "incompatible": 0.0, "uncertain": 0.0}
-
-        for vote in votes:
+        
+        for vote, weight in zip(votes, weights):
             vote_counts[vote.vote] += 1
-            weighted_scores[vote.vote] += vote.confidence
+            vote_scores[vote.vote] += weight * vote.confidence
 
-        # Majority decision (with confidence weighting)
-        decision = max(weighted_scores, key=weighted_scores.get)
+        # Majority decision (with demographic weighting)
+        decision = max(vote_scores, key=vote_scores.get)
 
-        # Average confidence of winning decision
-        winning_votes = [v for v in votes if v.vote == decision]
-        avg_confidence = sum(v.confidence for v in winning_votes) / len(winning_votes) if winning_votes else 0.5
+        # Weighted voting for rel_status
+        status_scores = {}
+        for vote, weight in zip(votes, weights):
+            if vote.rel_status not in status_scores:
+                status_scores[vote.rel_status] = 0.0
+            status_scores[vote.rel_status] += weight * vote.confidence
 
-        # Synthesize reasoning from all votes
+        # Normalize to probabilities
+        total_status_score = sum(status_scores.values())
+        rel_status_probs = {k: v / total_status_score for k, v in status_scores.items()} if total_status_score > 0 else {"stranger": 1.0}
+        rel_status = max(rel_status_probs, key=rel_status_probs.get)
+
+        # Weighted voting for rel_type
+        type_scores = {}
+        for vote, weight in zip(votes, weights):
+            if vote.rel_type not in type_scores:
+                type_scores[vote.rel_type] = 0.0
+            type_scores[vote.rel_type] += weight * vote.confidence
+
+        # Normalize to probabilities
+        total_type_score = sum(type_scores.values())
+        rel_type_probs = {k: v / total_type_score for k, v in type_scores.items()} if total_type_score > 0 else {"other": 1.0}
+        rel_type = max(rel_type_probs, key=rel_type_probs.get)
+
+        # Average confidence of winning decision (weighted)
+        winning_votes = [(v, w) for v, w in zip(votes, weights) if v.vote == decision]
+        avg_confidence = sum(v.confidence * w for v, w in winning_votes) / sum(w for _, w in winning_votes) if winning_votes else 0.5
+
+        # Synthesize reasoning from all votes (prioritize high-weight agents)
         reasoning_parts = []
-        for vote in votes:
-            reasoning_parts.append(f"{vote.agent_name} ({vote.vote}, {vote.confidence:.2f}): {vote.reasoning[:100]}...")
+        for vote, weight in sorted(zip(votes, weights), key=lambda x: x[1], reverse=True):
+            reasoning_parts.append(f"{vote.agent_name} (weight={weight:.2f}, {vote.vote}, {vote.confidence:.2f}): {vote.reasoning[:100]}...")
 
         synthesized_reasoning = "\n".join(reasoning_parts)
 
-        # Demographic insights (simplified)
+        # Demographic insights
         demographic_insights = {
             "total_agents": len(votes),
             "vote_distribution": vote_counts,
-            "weighted_scores": weighted_scores,
-            "consensus_strength": weighted_scores[decision] / sum(weighted_scores.values()) if sum(weighted_scores.values()) > 0 else 0.0
+            "weighted_scores": vote_scores,
+            "demographic_weights": {vote.agent_name: weight for vote, weight in zip(votes, weights)},
+            "consensus_strength": vote_scores[decision] / sum(vote_scores.values()) if sum(vote_scores.values()) > 0 else 0.0,
+            "status_distribution": status_scores,
+            "type_distribution": type_scores
         }
 
         return SocialConsensus(
             decision=decision,
+            rel_status=rel_status,
+            rel_type=rel_type,
+            rel_status_probs=rel_status_probs,
+            rel_type_probs=rel_type_probs,
             confidence=avg_confidence,
             votes=votes,
             vote_distribution=vote_counts,
             reasoning=synthesized_reasoning,
             demographic_insights=demographic_insights
         )
+
+    def _calculate_demographic_similarity(
+        self,
+        agent: SocialPersona,
+        user_demographics: Dict[str, Any]
+    ) -> float:
+        """
+        Calculate demographic similarity between agent and user.
+        
+        Based on ICLR 2026 Social Agents paper: agents with similar demographics
+        to the user should have higher voting weight.
+        
+        Args:
+            agent: Social agent persona
+            user_demographics: User's demographic info (age, gender, relationship_status)
+        
+        Returns:
+            Similarity score 0.0-1.0
+        """
+        similarity = 0.0
+        weight_sum = 0.0
+        
+        # Age similarity (weight: 0.3)
+        if 'age' in user_demographics and user_demographics['age']:
+            age_diff = abs(agent.age - user_demographics['age'])
+            age_similarity = max(0, 1 - age_diff / 50)  # Normalize by 50 years
+            similarity += age_similarity * 0.3
+            weight_sum += 0.3
+        
+        # Gender similarity (weight: 0.3)
+        if 'gender' in user_demographics and user_demographics['gender']:
+            gender_match = 1.0 if agent.gender == user_demographics['gender'] else 0.0
+            similarity += gender_match * 0.3
+            weight_sum += 0.3
+        
+        # Relationship status similarity (weight: 0.4)
+        if 'relationship_status' in user_demographics and user_demographics['relationship_status']:
+            status_match = 1.0 if agent.relationship_status == user_demographics['relationship_status'] else 0.0
+            similarity += status_match * 0.4
+            weight_sum += 0.4
+        
+        # Normalize by actual weights used
+        if weight_sum > 0:
+            similarity = similarity / weight_sum
+        else:
+            similarity = 0.5  # Default if no demographics available
+        
+        return similarity
