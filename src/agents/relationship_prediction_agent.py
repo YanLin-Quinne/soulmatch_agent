@@ -19,14 +19,17 @@ from loguru import logger
 from .agent_context import AgentContext
 from .llm_router import router, AgentRole
 from .conformal_calibrator import ConformalCalibrator
+from .agent_discussion_room import AgentDiscussionRoom
 
 
 class RelationshipPredictionAgent:
     """关系状态预测Agent,融合多角色评估+共形预测"""
 
-    def __init__(self, llm_router=None, calibrator: Optional[ConformalCalibrator] = None):
+    def __init__(self, llm_router=None, calibrator: Optional[ConformalCalibrator] = None, use_discussion_room: bool = True):
         self.llm = llm_router or router
         self.calibrator = calibrator or ConformalCalibrator(alpha=0.10)
+        self.use_discussion_room = use_discussion_room
+        self.discussion_room = AgentDiscussionRoom(self.llm) if use_discussion_room else None
 
     async def execute(self, ctx: AgentContext) -> Dict[str, Any]:
         """
@@ -150,7 +153,89 @@ Output format:
 
     async def _multi_role_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
         """Step 3: 多角色评估(情感/价值观/行为专家)→关系类型+状态"""
-        # 简化版: 单次LLM调用,模拟3个角色的加权聚合
+
+        if self.use_discussion_room and self.discussion_room:
+            # 使用Agent讨论室进行多Agent辩论
+            return await self._discussion_room_assessment(ctx, compressed_context)
+        else:
+            # 原有的单LLM模拟多角色方法
+            return await self._single_llm_assessment(ctx, compressed_context)
+
+    async def _discussion_room_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
+        """使用Agent讨论室进行多Agent辩论评估"""
+        context = {
+            "compressed_context": compressed_context,
+            "turn_count": ctx.turn_count,
+            "current_rel_status": ctx.rel_status,
+            "big_five": ctx.predicted_features.get('big_five', {}),
+            "interests": ctx.predicted_features.get('interests', {}),
+            "trust_score": ctx.extended_features.get('trust_score', 0.5),
+        }
+
+        agents = [
+            {
+                "name": "EmotionExpert",
+                "role": AgentRole.EMOTION,
+                "expertise": "Emotional dynamics and sentiment analysis",
+                "system_prompt": "You are an expert in emotional intelligence and relationship dynamics."
+            },
+            {
+                "name": "ValuesExpert",
+                "role": AgentRole.FEATURE,
+                "expertise": "Value alignment and compatibility assessment",
+                "system_prompt": "You are an expert in personality psychology and value systems."
+            },
+            {
+                "name": "BehaviorExpert",
+                "role": AgentRole.GENERAL,
+                "expertise": "Behavioral patterns and interaction quality",
+                "system_prompt": "You are an expert in behavioral psychology and social interactions."
+            }
+        ]
+
+        voting_weights = {
+            "EmotionExpert": 0.4,
+            "ValuesExpert": 0.3,
+            "BehaviorExpert": 0.3
+        }
+
+        topic = f"""Based on the context, assess:
+1. Relationship type (love/friendship/family/other)
+2. Relationship status (stranger/acquaintance/crush/dating/committed)
+
+Output JSON:
+{{
+  "rel_type": "love|friendship|family|other",
+  "rel_type_probs": {{"love": 0.x, "friendship": 0.y, ...}},
+  "rel_status": "stranger|acquaintance|crush|dating|committed",
+  "rel_status_probs": {{"stranger": 0.x, "acquaintance": 0.y, ...}}
+}}
+
+Constraint: rel_status can only advance or stay (current: {ctx.rel_status})"""
+
+        consensus = await self.discussion_room.discuss(topic, context, agents, voting_weights)
+
+        # 解析consensus.decision为JSON
+        try:
+            import re
+            clean_decision = re.sub(r'^```json\s*|\s*```$', '', consensus.decision.strip(), flags=re.MULTILINE)
+            result = json.loads(clean_decision)
+            result["reasoning"] = consensus.reasoning
+
+            # 单调约束
+            status_order = ["stranger", "acquaintance", "crush", "dating", "committed"]
+            current_idx = status_order.index(ctx.rel_status) if ctx.rel_status in status_order else 0
+            predicted_idx = status_order.index(result["rel_status"]) if result["rel_status"] in status_order else 0
+            if predicted_idx < current_idx:
+                result["rel_status"] = ctx.rel_status
+
+            return result
+        except Exception as e:
+            logger.warning(f"[RelationshipPredictionAgent] 讨论室结果解析失败: {e}")
+            return await self._single_llm_assessment(ctx, compressed_context)
+
+    async def _single_llm_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
+        """原有的单LLM模拟多角色方法(fallback)"""
         prompt = f"""You are a relationship assessment panel with 3 experts:
 1. Emotional analyst (weight: 0.4)
 2. Values compatibility analyst (weight: 0.3)
@@ -188,12 +273,12 @@ Constraints:
 
         try:
             result = json.loads(response.strip())
-            # 单调约束: 不能倒退
+            # 单调约束
             status_order = ["stranger", "acquaintance", "crush", "dating", "committed"]
             current_idx = status_order.index(ctx.rel_status) if ctx.rel_status in status_order else 0
             predicted_idx = status_order.index(result["rel_status"]) if result["rel_status"] in status_order else 0
             if predicted_idx < current_idx:
-                result["rel_status"] = ctx.rel_status  # 维持现状
+                result["rel_status"] = ctx.rel_status
             return result
         except Exception as e:
             logger.warning(f"[RelationshipPredictionAgent] JSON解析失败: {e}, 使用默认值")
