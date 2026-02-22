@@ -12,6 +12,8 @@ license: mit
 
 Multi-agent relationship prediction system with conformal uncertainty quantification.
 
+🚀 **Live Demo**: https://huggingface.co/spaces/Quinnnnnne/SoulMatch-Agent
+
 ## Features
 
 - 🤖 6 协同Agent（Orchestrator, Feature, Emotion, Scam, Persona, Question）
@@ -21,12 +23,9 @@ Multi-agent relationship prediction system with conformal uncertainty quantifica
 - 💬 实时WebSocket通信
 - 🎨 精美UI设计（social-forecast风格）
 
-## Usage
+## Quick Start
 
-1. 选择一个Bot角色开始对话
-2. 系统实时推断你的特征和情绪
-3. 第10/30轮生成里程碑报告
-4. 查看关系状态预测和保形预测区间
+Visit the Space and start chatting with AI personas!
 
 ## Tech Stack
 
@@ -35,16 +34,6 @@ Multi-agent relationship prediction system with conformal uncertainty quantifica
 - LLM: GPT-5.2, Gemini Flash, DeepSeek
 - Memory: ChromaDB
 - Calibration: Conformal Prediction (APS)
-
-## Configuration
-
-Set environment variables in HuggingFace Space settings:
-
-```bash
-OPENAI_API_KEY=your_key_here
-GEMINI_API_KEY=your_key_here
-DEEPSEEK_API_KEY=your_key_here
-```
 
 ## Local Development
 
@@ -58,6 +47,15 @@ cd frontend
 npm install
 npm run dev
 ```
+
+## Configuration
+
+Environment variables (set in HuggingFace Space settings):
+- `OPENAI_API_KEY`
+- `GEMINI_API_KEY`
+- `DEEPSEEK_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `QWEN_API_KEY`
 
 ## Paper
 

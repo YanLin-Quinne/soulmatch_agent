@@ -506,7 +506,7 @@ function App() {
                           <h4>Interests</h4>
                           {Object.entries(featureData.features)
                             .filter(([key]) => key.startsWith('interest_'))
-                            .map(([key, value]) => {
+                            .map(([key]) => {
                               const interest = key.replace('interest_', '').replace(/_/g, ' ');
                               const confidence = featureData.confidences[key] || 0;
                               return (
