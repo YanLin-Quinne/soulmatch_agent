@@ -208,7 +208,23 @@ class PersonaAgent:
             if feature_block:
                 parts.append(feature_block)
 
-            if ctx.suggested_probes:
+            if ctx.suggested_hints:
+                type_labels = {
+                    "direct_question": "Ask casually",
+                    "hint": "Drop a hint to invite sharing",
+                    "self_disclosure": "Share about yourself first",
+                    "topic_shift": "Naturally shift the topic toward",
+                }
+                lines = []
+                for h in ctx.suggested_hints:
+                    label = type_labels.get(h.get("type", ""), "Try")
+                    lines.append(f"- ({label}) {h['text']}")
+                parts.append(
+                    f"[Conversation strategies]\n"
+                    f"Pick ONE approach that fits the flow. Do NOT use all of them:\n"
+                    + "\n".join(lines)
+                )
+            elif ctx.suggested_probes:
                 probes = "\n".join(f"- {p}" for p in ctx.suggested_probes)
                 parts.append(
                     f"[Conversation goals]\n"
@@ -222,6 +238,33 @@ class PersonaAgent:
             discussion_block = ctx.discussion_context_block()
             if discussion_block:
                 parts.append(discussion_block)
+
+            # Phase-aware reply style
+            state = ctx.current_state
+            style_map = {
+                "GREETING": (
+                    "[Reply style: First impression]\n"
+                    "Be warm, curious, and a little playful. Ask an open-ended question "
+                    "to get the conversation going. Keep it light — no deep topics yet."
+                ),
+                "ACTIVE": (
+                    "[Reply style: Getting to know each other]\n"
+                    "Show genuine interest. React to what they said before asking something new. "
+                    "Balance listening and sharing. It's okay to go a bit deeper now."
+                ),
+                "WARNING": (
+                    "[Reply style: Cautious]\n"
+                    "Be polite but guarded. Steer the conversation back to safe topics. "
+                    "Do not share personal details."
+                ),
+            }
+            if state in style_map:
+                parts.append(style_map[state])
+
+            # Relationship context (already defined in AgentContext)
+            rel_block = ctx.relationship_context_block()
+            if rel_block:
+                parts.append(rel_block)
 
         return "\n\n".join(parts)
 

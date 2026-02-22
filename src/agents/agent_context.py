@@ -47,6 +47,7 @@ class AgentContext:
 
     # --- Question strategy (written by QuestionStrategyAgent) ---
     suggested_probes: list[str] = field(default_factory=list)
+    suggested_hints: list[dict] = field(default_factory=list)
 
     # --- Tool use (written by ToolExecutor) ---
     tool_results: dict[str, Any] = field(default_factory=dict)
@@ -88,6 +89,9 @@ class AgentContext:
 
     # --- Anti-AI mechanism ---
     reply_delay_seconds: float = 0.0
+
+    # --- State awareness ---
+    current_state: str = "INIT"
 
     # --- Multi-participant session ---
     session_participants: list[str] = field(default_factory=list)

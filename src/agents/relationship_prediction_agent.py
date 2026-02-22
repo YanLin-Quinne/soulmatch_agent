@@ -34,7 +34,7 @@ class RelationshipPredictionAgent:
             self.calibrator = ConformalCalibrator(alpha=0.10)
             # Try to load calibration data
             from src.config import settings
-            calib_path = str(settings.data_dir / "training" / "conformal_calibration.json")
+            calib_path = str(settings.data_dir / "calibration" / "conformal_calibrator.json")
             import os
             if os.path.exists(calib_path):
                 try:

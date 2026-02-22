@@ -193,6 +193,11 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     heartbeat_task.cancel()
 
                 if result.get("success"):
+                    # Conversational pacing: delay before sending bot response
+                    delay = result.get("reply_delay", 0)
+                    if delay > 0:
+                        await asyncio.sleep(delay)
+
                     # Send bot response
                     if "bot_message" in result:
                         await manager.send_message(user_id, {

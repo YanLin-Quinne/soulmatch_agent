@@ -145,6 +145,7 @@ class OrchestratorAgent:
         self.ctx.user_message = message
         self.ctx.add_to_history("user", message)
         self.ctx.turn_count = self.state_machine.context.turn_count + 1
+        self.ctx.current_state = self.state_machine.context.current_state
         self.memory_manager.add_conversation_turn("user", message)
 
         actions = self.state_machine.handle_user_message()
@@ -227,6 +228,15 @@ class OrchestratorAgent:
                 self.ctx.add_to_history("bot", bot_text)
                 self.memory_manager.add_conversation_turn("bot", bot_text)
                 self.state_machine.handle_bot_message()
+
+                # Conversational pacing: simulate human typing delay
+                char_count = len(bot_text)
+                base_delay = min(char_count * 0.02, 3.0)  # ~20ms per char, cap 3s
+                state = self.state_machine.context.current_state
+                if state == "GREETING":
+                    base_delay = max(base_delay, 1.5)  # Greeting feels deliberate
+                self.ctx.reply_delay_seconds = round(base_delay, 1)
+                response["reply_delay"] = self.ctx.reply_delay_seconds
             except Exception as e:
                 logger.error(f"[Orchestrator] Bot response generation failed: {e}")
                 response["bot_message"] = "Sorry, I'm having a moment. Could you say that again?"
@@ -348,8 +358,9 @@ class OrchestratorAgent:
     def _update_question_strategy(self):
         low = self.ctx.low_confidence_features
         if low:
-            probes = self.question_agent.suggest_probes(low, self.ctx.conversation_history)
-            self.ctx.suggested_probes = probes
+            hints = self.question_agent.suggest_hints(low, self.ctx.conversation_history)
+            self.ctx.suggested_probes = [h["text"] for h in hints]
+            self.ctx.suggested_hints = hints
 
     def _generate_bot_response(self) -> str:
         return self.current_bot.generate_response(message=self.ctx.user_message, ctx=self.ctx)
