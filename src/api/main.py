@@ -13,7 +13,9 @@ from loguru import logger
 from src.config import settings
 from src.api.session_manager import session_manager
 from src.api.chat_handler import chat_handler
+from src.api.chat_handler_simple import simple_chat_handler
 from src.api.websocket import websocket_endpoint
+from src.api.websocket_simple import websocket_simple_endpoint
 from src.agents.persona_agent import create_agent_pool_from_file
 from src.agents.tools.builtin import register_builtin_tools
 from src.agents.llm_router import router
@@ -100,7 +102,10 @@ async def lifespan(app: FastAPI):
             
             # Set pool in session manager
             session_manager.set_bot_personas_pool(bot_pool)
-            
+
+            # Also set pool in simple chat handler
+            simple_chat_handler.set_bot_pool(bot_pool)
+
             logger.info(f"✅ Loaded {len(bot_pool)} bot personas from {personas_path}")
             
         except Exception as e:
@@ -318,6 +323,27 @@ async def websocket_chat(websocket: WebSocket, user_id: str):
         - Server sends various message types (bot_message, emotion, warning, etc.)
     """
     await websocket_endpoint(websocket, user_id)
+
+
+@app.websocket("/ws-simple/{user_id}")
+async def websocket_chat_simple(websocket: WebSocket, user_id: str):
+    """
+    WebSocket endpoint for real-time chat (Simple mode - more reliable)
+
+    Connect via: ws://localhost:8000/ws-simple/{user_id}
+
+    This endpoint uses SimplePersonaAgent which:
+    - Guarantees correct message format (no "role" errors)
+    - Has fallback to rules if API fails
+    - Faster response times
+    - Simpler state management
+
+    Protocol:
+        - Client sends: {"action": "start"} to start conversation
+        - Client sends: {"action": "message", "content": "..."} to chat
+        - Server sends: bot_message, error, etc.
+    """
+    await websocket_simple_endpoint(websocket, user_id)
 
 
 # ============================================
