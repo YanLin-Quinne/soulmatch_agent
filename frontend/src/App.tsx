@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import RelationshipTab from './components/RelationshipTab';
 
-const WS_BASE = 'ws://localhost:8000';
+const WS_BASE = window.location.protocol === 'https:'
+  ? `wss://${window.location.host}`
+  : 'ws://localhost:8000';
 
 interface Character {
   id: string;
