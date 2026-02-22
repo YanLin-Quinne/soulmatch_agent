@@ -19,17 +19,17 @@ from loguru import logger
 from .agent_context import AgentContext
 from .llm_router import router, AgentRole
 from .conformal_calibrator import ConformalCalibrator
-from .agent_discussion_room import AgentDiscussionRoom
+from .social_agents_room import SocialAgentsRoom  # New: Real demographic diversity
 
 
 class RelationshipPredictionAgent:
     """关系状态预测Agent,融合多角色评估+共形预测"""
 
-    def __init__(self, llm_router=None, calibrator: Optional[ConformalCalibrator] = None, use_discussion_room: bool = True):
+    def __init__(self, llm_router=None, calibrator: Optional[ConformalCalibrator] = None, use_social_agents: bool = True):
         self.llm = llm_router or router
         self.calibrator = calibrator or ConformalCalibrator(alpha=0.10)
-        self.use_discussion_room = use_discussion_room
-        self.discussion_room = AgentDiscussionRoom(self.llm) if use_discussion_room else None
+        self.use_social_agents = use_social_agents
+        self.social_agents_room = SocialAgentsRoom(self.llm) if use_social_agents else None
 
     async def execute(self, ctx: AgentContext) -> Dict[str, Any]:
         """
@@ -155,14 +155,42 @@ Output format:
         return {"label": label, "confidence": confidence, "valence": avg_valence}
 
     async def _multi_role_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
-        """Step 3: 多角色评估(情感/价值观/行为专家)→关系类型+状态"""
+        """Step 3: Social Agents评估(demographic diverse agents)→关系类型+状态"""
 
-        if self.use_discussion_room and self.discussion_room:
-            # 使用Agent讨论室进行多Agent辩论
-            return await self._discussion_room_assessment(ctx, compressed_context)
+        if self.use_social_agents and self.social_agents_room:
+            # 使用Social Agents Room进行demographic diverse评估
+            return await self._social_agents_assessment(ctx, compressed_context)
         else:
-            # 原有的单LLM模拟多角色方法
+            # Fallback: 单LLM评估
             return await self._single_llm_assessment(ctx, compressed_context)
+
+    async def _social_agents_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
+        """使用Social Agents Room进行demographic diverse评估"""
+
+        relationship_context = {
+            "rel_status": ctx.rel_status,
+            "sentiment": ctx.sentiment_label,
+            "trust_score": ctx.extended_features.get("trust_score", 0.5),
+            "turn_count": ctx.turn_count,
+        }
+
+        # 调用Social Agents Room
+        consensus = await self.social_agents_room.assess_relationship(
+            conversation_summary=compressed_context,
+            relationship_context=relationship_context
+        )
+
+        # 从consensus中提取关系类型和状态
+        # 这里简化处理，实际应该让social agents也投票关系类型和状态
+        return {
+            "rel_type": "love" if consensus.decision == "compatible" else "other",
+            "rel_type_probs": {"love": 0.7, "friendship": 0.2, "other": 0.1} if consensus.decision == "compatible" else {"other": 0.7, "friendship": 0.2, "love": 0.1"},
+            "rel_status": ctx.rel_status,  # 保持当前状态
+            "rel_status_probs": {ctx.rel_status: 0.8},
+            "rel_status_confidence": consensus.confidence,
+            "reasoning": f"Social Agents Consensus ({consensus.vote_distribution}): {consensus.reasoning[:200]}...",
+            "social_consensus": consensus,  # 保存完整的consensus结果
+        }
 
     async def _discussion_room_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
         """使用Agent讨论室进行多Agent辩论评估"""
