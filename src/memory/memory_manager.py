@@ -1,28 +1,43 @@
-"""Memory Manager — LLM-powered memory decisions via LLMRouter."""
+"""Memory Manager — LLM-powered memory decisions via LLMRouter with Three-Layer Memory."""
 
 import json
 import uuid
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from loguru import logger
 
-from src.memory.memory_operations import Memory, MemoryAction, MemoryOperation, MemoryReward
+from src.memory.memory_operations import Memory, MemoryAction, MemoryOperation
 from src.memory.chromadb_client import ChromaDBClient
-from src.agents.llm_router import router, AgentRole
+
+if TYPE_CHECKING:
+    from src.memory.three_layer_memory import ThreeLayerMemory
+    from src.agents.llm_router import AgentRole
 
 
 class MemoryManager:
-    """Memory Manager Agent using LLMRouter for multi-provider support."""
+    """Memory Manager Agent using LLMRouter with Three-Layer Memory System."""
 
-    def __init__(self, user_id: str, db_client: Optional[ChromaDBClient] = None, use_llm: bool = True):
+    def __init__(self, user_id: str, db_client: Optional[ChromaDBClient] = None, use_llm: bool = True, use_three_layer: bool = True):
         self.user_id = user_id
         self.db_client = db_client or ChromaDBClient()
         self.use_llm = use_llm
+        self.use_three_layer = use_three_layer
         self.conversation_history: List[dict] = []
         self.current_turn: int = 0
+
+        # Three-layer memory system (lazy import to avoid circular dependency)
+        self.three_layer_memory: Optional['ThreeLayerMemory'] = None
+        if use_three_layer:
+            from src.memory.three_layer_memory import ThreeLayerMemory
+            from src.agents.llm_router import router
+            self.three_layer_memory = ThreeLayerMemory(llm_router=router)
 
     def add_conversation_turn(self, speaker: str, message: str):
         self.conversation_history.append({"turn": self.current_turn, "speaker": speaker, "message": message})
         self.current_turn += 1
+
+        # Add to three-layer memory system
+        if self.three_layer_memory:
+            self.three_layer_memory.add_to_working_memory(speaker, message)
 
     def decide_memory_action(self, recent_messages: List[dict], current_features: Optional[dict] = None) -> MemoryAction:
         if not self.use_llm:
@@ -31,8 +46,23 @@ class MemoryManager:
 
     def retrieve_relevant_memories(self, query: str, n: int = 5) -> List[str]:
         """Retrieve memory texts relevant to a query."""
-        memories = self.db_client.retrieve_memories(user_id=self.user_id, query_text=query, n_results=n)
-        return [m.content for m in memories] if memories else []
+        if self.three_layer_memory:
+            # Use three-layer memory system for retrieval
+            full_context = self.three_layer_memory.get_full_context(query)
+            return [full_context] if full_context else []
+        else:
+            # Fallback to ChromaDB
+            memories = self.db_client.retrieve_memories(user_id=self.user_id, query_text=query, n_results=n)
+            return [m.content for m in memories] if memories else []
+
+    def get_memory_stats(self) -> dict:
+        """Get three-layer memory statistics."""
+        if self.three_layer_memory:
+            return self.three_layer_memory.get_memory_stats()
+        return {
+            "current_turn": self.current_turn,
+            "total_memories": len(self.get_all_memories())
+        }
 
     # ------------------------------------------------------------------
 
