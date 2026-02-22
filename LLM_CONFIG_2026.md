@@ -2,7 +2,7 @@
 
 ## Supported LLM Providers
 
-SoulMatch v2.0 supports 5 state-of-the-art LLM providers with automatic fallback and cost tracking:
+SoulMatch v2.0 supports 5 state-of-the-art LLM providers with automatic fallback and :
 
 ### 1. OpenAI GPT-5.2
 - **Model ID**: `gpt-5.2`

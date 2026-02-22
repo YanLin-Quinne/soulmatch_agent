@@ -161,12 +161,6 @@ stats = manager.get_memory_stats()
 - **Semantic reflection** (every 50 turns): ~3-5 seconds (1 LLM call)
 - **Consistency check** (every 20 turns): ~2-3 seconds (1 LLM call)
 
-### Cost
-- **Per 10 turns**: ~$0.0001 (episodic compression)
-- **Per 50 turns**: ~$0.0002 (semantic reflection)
-- **Per 20 turns**: ~$0.00006 (consistency check)
-- **Total for 100 turns**: ~$0.0015
-
 ### Memory Efficiency
 - **Compression ratio**: ~0.9 (10 raw turns → 1 episodic summary)
 - **Context size reduction**: 90% reduction in token usage for long conversations

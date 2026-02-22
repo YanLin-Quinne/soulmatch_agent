@@ -19,7 +19,6 @@ User Input → RelationshipPredictionAgent
 **Characteristics**:
 - 1 LLM call per prediction
 - Latency: ~3-5 seconds
-- Cost: ~$0.01 per prediction
 - Simulates multi-perspective reasoning in system prompt
 
 ### Multi-Agent Discussion Room (New)
@@ -46,7 +45,6 @@ EmotionExpert ValuesExpert BehaviorExpert
 **Characteristics**:
 - 9 LLM calls per prediction (3 propose + 3 critique + 3 critique-back)
 - Latency: ~15-25 seconds
-- Cost: ~$0.05 per prediction
 - True multi-agent debate with independent reasoning
 
 ---
@@ -70,8 +68,7 @@ EmotionExpert ValuesExpert BehaviorExpert
 | **Can Advance** | False | False |
 | **Prediction Set** | ['uncertain', 'yes'] | ['uncertain', 'yes'] |
 | **Latency** | ~5s | ~18s |
-| **Cost** | ~$0.01 | ~$0.05 |
-
+| 
 ### Key Differences
 
 **Single LLM**:
@@ -93,7 +90,7 @@ EmotionExpert ValuesExpert BehaviorExpert
 
 ### Use Single LLM When:
 - Speed matters (real-time chat)
-- Cost is a concern (high volume)
+- Latency is a concern (high volume)
 - Conservative predictions are preferred
 - Simple binary decisions
 
@@ -101,7 +98,7 @@ EmotionExpert ValuesExpert BehaviorExpert
 - Accuracy is critical (research/paper)
 - Complex multi-faceted decisions
 - Need explainable reasoning with debate traces
-- Willing to trade latency/cost for quality
+- Willing to trade latency/quality
 
 ---
 
@@ -125,8 +122,7 @@ agent = RelationshipPredictionAgent(use_discussion_room=True)
 3. **Coverage**: Conformal prediction coverage rate (should be ≥90%)
 4. **Efficiency**: Average prediction set size
 5. **Latency**: Time per prediction
-6. **Cost**: USD per 1000 predictions
-
+6. 
 ### Hypothesis:
 Multi-agent discussion room will show:
 - Higher accuracy (+5-10% F1-score)
@@ -134,7 +130,7 @@ Multi-agent discussion room will show:
 - Similar coverage (both ~90%)
 - Slightly larger prediction sets (more uncertain)
 - 3-5x higher latency
-- 5x higher cost
+- 5x more LLM calls
 
 ---
 
@@ -169,8 +165,7 @@ Both methods:
 This comparison enables studying:
 
 1. **Multi-agent collaboration**: Does true debate outperform simulated multi-perspective reasoning?
-2. **Cost-accuracy tradeoff**: Is 5x cost justified by accuracy gains?
-3. **Explainability**: Do debate traces improve trust in predictions?
+2. 3. **Explainability**: Do debate traces improve trust in predictions?
 4. **Robustness**: Which approach handles edge cases better?
 
 The dual implementation allows controlled experiments with identical context, features, and evaluation metrics.

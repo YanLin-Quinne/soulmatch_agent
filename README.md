@@ -104,7 +104,7 @@ Example (diet prediction over 30 turns):
 
 ## What's Implemented
 
-* **Multi-LLM Router** — 5 providers (Anthropic, OpenAI, Gemini, DeepSeek, Qwen), 15 models including GPT-5.2, Claude Opus 4.6, Gemini 3.1 Pro, DeepSeek Reasoner, Qwen 3.5 Plus, automatic fallback, cost tracking
+* **Multi-LLM Router** — 5 providers (Anthropic, OpenAI, Gemini, DeepSeek, Qwen), 15 models including GPT-5.2, Claude Opus 4.6, Gemini 3.1 Pro, DeepSeek Reasoner, Qwen 3.5 Plus, automatic fallback
 * **Memory** — ChromaDB vector store, LLM-scored importance, memories injected into persona system prompts
 * **Confidence Convergence** — replaced hard 30-turn cutoff; feature prediction stops early when avg confidence > 0.80
 * **Question Strategy** — agent suggests 1-3 natural topics to probe low-confidence features
@@ -277,7 +277,7 @@ python -m src.training.rl_trainer --sft-model models/sft/final --data data/train
 
 ## Roadmap
 
-- [x] Multi-provider LLM router with fallback + cost tracking
+- [x] Multi-provider LLM router with automatic fallback
 - [x] Memory injection into persona prompts (ChromaDB)
 - [x] Confidence-based convergence for feature prediction
 - [x] Question strategy agent for low-confidence features

@@ -716,23 +716,6 @@ MemoryManager.decide_memory_action → {
 
 ---
 
-## Cost Analysis (Per 100 Turns)
-
-| Component | Calls per 100 turns | Cost per call | Total Cost |
-|-----------|---------------------|---------------|------------|
-| **EmotionAgent** | 100 | $0.0001 | $0.01 |
-| **ScamDetectionAgent** | 50 | $0.0001 | $0.005 |
-| **FeaturePredictionAgent** | 33 | $0.0002 | $0.0066 |
-| **RelationshipPredictionAgent** | 20 | $0.0005 | $0.01 |
-| **PersonaAgent** | 100 | $0.0002 | $0.02 |
-| **MemoryManager (LLM)** | 20 | $0.0001 | $0.002 |
-| **Three-Layer Memory** | - | - | $0.0017 |
-| **Total** | ~323 | - | **$0.055** |
-
-**Note**: Multi-agent discussion room adds 5× cost for RelationshipPredictionAgent
-
----
-
 ## Debugging Checklist
 
 When debugging, check these I/O points:
@@ -758,20 +741,14 @@ When debugging, check these I/O points:
 ## Testing Commands
 
 ```bash
-# Test MemoryManager LLM decision
-python test_memory_manager_llm.py
-
-# Test three-layer memory integration
-python test_memory_manager_integration.py
-
-# Test complete three-layer memory
-python test_three_layer_memory.py
-
 # Run ablation study
 python -m experiments.ablation_study
 
 # Run hallucination measurement
 python -m experiments.hallucination_measurement
+
+# Run integration tests
+python -m pytest tests/
 ```
 
 ---
