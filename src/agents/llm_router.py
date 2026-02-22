@@ -249,12 +249,19 @@ def _call_openai_compat(
 ) -> tuple[str, int, int]:
     """OpenAI-compatible call (works for OpenAI, DeepSeek, Qwen)."""
     api_messages = [{"role": "system", "content": system}] + messages
-    resp = client.chat.completions.create(
-        model=model_id,
-        messages=api_messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
+
+    # GPT-5+ uses max_completion_tokens instead of max_tokens
+    kwargs = {
+        "model": model_id,
+        "messages": api_messages,
+        "temperature": temperature,
+    }
+    if "gpt-5" in model_id or "gpt-6" in model_id:
+        kwargs["max_completion_tokens"] = max_tokens
+    else:
+        kwargs["max_tokens"] = max_tokens
+
+    resp = client.chat.completions.create(**kwargs)
     if not resp.choices:
         raise ValueError(f"OpenAI-compat returned no choices (model={model_id})")
     content = resp.choices[0].message.content or ""
