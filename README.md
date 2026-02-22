@@ -37,18 +37,18 @@ MCP Server (stdio)
     └── Exposes: analyze_emotion, predict_features, check_scam, suggest_topics, get_usage_stats
 ```
 
-### Multi-Provider LLM Router
+### Multi-Provider LLM Router (2026 Latest Models)
 
 Unified interface across 5 providers with automatic fallback:
 
 | Agent Role | Primary | Fallback Chain |
 |---|---|---|
-| Persona | Claude Sonnet | GPT-4o → DeepSeek Chat → Qwen Plus |
-| Emotion | Gemini Flash | Claude Haiku → GPT-4o-mini → Qwen Turbo |
-| Feature | Claude Sonnet | GPT-4o → DeepSeek Chat → Qwen Plus |
-| Scam | Claude Haiku | GPT-4o-mini → Gemini Flash → DeepSeek |
+| Persona | Claude Opus 4.6 | GPT-5.2 → DeepSeek Reasoner → Qwen 3.5 Plus |
+| Emotion | Gemini 2.5 Flash | Claude Haiku → GPT-4o-mini → Qwen Turbo |
+| Feature | Claude Opus 4.6 | GPT-5.2 → DeepSeek Reasoner → Qwen 3.5 Plus |
+| Scam | Claude Haiku | GPT-4o-mini → Gemini Flash → DeepSeek Chat |
 | Memory | Claude Haiku | GPT-4o-mini → Gemini Flash → Qwen Turbo |
-| Question | Gemini Flash | Claude Haiku → DeepSeek → Qwen Turbo |
+| Question | Gemini 3.1 Pro | Claude Haiku → DeepSeek Chat → Qwen Turbo |
 
 Cost tracking per provider. Lazy client initialization.
 
@@ -104,7 +104,7 @@ Example (diet prediction over 30 turns):
 
 ## What's Implemented
 
-* **Multi-LLM Router** — 5 providers (Anthropic, OpenAI, Gemini, DeepSeek, Qwen), 9 models, automatic fallback, cost tracking
+* **Multi-LLM Router** — 5 providers (Anthropic, OpenAI, Gemini, DeepSeek, Qwen), 15 models including GPT-5.2, Claude Opus 4.6, Gemini 3.1 Pro, DeepSeek Reasoner, Qwen 3.5 Plus, automatic fallback, cost tracking
 * **Memory** — ChromaDB vector store, LLM-scored importance, memories injected into persona system prompts
 * **Confidence Convergence** — replaced hard 30-turn cutoff; feature prediction stops early when avg confidence > 0.80
 * **Question Strategy** — agent suggests 1-3 natural topics to probe low-confidence features
@@ -133,7 +133,7 @@ Example (diet prediction over 30 turns):
 * **Backend**: Python 3.10+, FastAPI, WebSocket, Pydantic
 * **Frontend**: React 18, TypeScript, Vite
 * **Vector DB**: ChromaDB
-* **LLM Providers**: Anthropic (Claude), OpenAI (GPT-4o), Google (Gemini), DeepSeek, Qwen
+* **LLM Providers**: Anthropic (Claude Opus 4.6), OpenAI (GPT-5.2), Google (Gemini 3.1 Pro), DeepSeek (Reasoner V3.2), Qwen (3.5 Plus)
 * **MCP**: mcp 1.26+ (stdio transport)
 * **Training**: PyTorch, Transformers, TRL (SFT + GRPO)
 * **Uncertainty Quantification**: Conformal Prediction (APS), NumPy

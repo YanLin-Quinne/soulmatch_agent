@@ -54,20 +54,25 @@ class ModelSpec:
     output_cost_per_1k: float = 0.0  # USD per 1K output tokens
 
 
-# Available models — ordered by quality within each provider
+# Available models — ordered by quality within each provider (2026-02-22 Latest)
 MODELS: dict[str, ModelSpec] = {
-    # Anthropic
+    # Anthropic Claude Opus 4.6 (2026)
+    "claude-opus-4": ModelSpec(Provider.ANTHROPIC, "claude-opus-4-6", 0.015, 0.075),
     "claude-sonnet": ModelSpec(Provider.ANTHROPIC, "claude-sonnet-4-20250514", 0.003, 0.015),
     "claude-haiku": ModelSpec(Provider.ANTHROPIC, "claude-haiku-4-20250414", 0.00025, 0.00125),
-    # OpenAI
+    # OpenAI GPT-5.2 (2026)
+    "gpt-5": ModelSpec(Provider.OPENAI, "gpt-5.2", 0.010, 0.030),
     "gpt-4o": ModelSpec(Provider.OPENAI, "gpt-4o", 0.005, 0.015),
     "gpt-4o-mini": ModelSpec(Provider.OPENAI, "gpt-4o-mini", 0.00015, 0.0006),
-    # Google
-    "gemini-flash": ModelSpec(Provider.GEMINI, "gemini-2.0-flash", 0.0001, 0.0004),
+    # Google Gemini 3.1 Pro Preview / 2.5 Flash (2026)
+    "gemini-3-pro": ModelSpec(Provider.GEMINI, "gemini-3.1-pro-preview", 0.002, 0.008),
+    "gemini-flash": ModelSpec(Provider.GEMINI, "gemini-2.5-flash", 0.0001, 0.0004),
     "gemini-pro": ModelSpec(Provider.GEMINI, "gemini-2.5-pro-preview-06-05", 0.00125, 0.01),
-    # DeepSeek
+    # DeepSeek V3.2 Reasoner (2026)
+    "deepseek-reasoner": ModelSpec(Provider.DEEPSEEK, "deepseek-reasoner", 0.00055, 0.0022),
     "deepseek-chat": ModelSpec(Provider.DEEPSEEK, "deepseek-chat", 0.00014, 0.00028),
-    # Qwen
+    # Qwen 3.5 Plus (2026)
+    "qwen-3.5-plus": ModelSpec(Provider.QWEN, "qwen3.5-plus", 0.0008, 0.0024),
     "qwen-plus": ModelSpec(Provider.QWEN, "qwen-plus", 0.0004, 0.0012),
     "qwen-turbo": ModelSpec(Provider.QWEN, "qwen-turbo", 0.0001, 0.0002),
     # Local (costs are zero — your hardware)
@@ -76,14 +81,14 @@ MODELS: dict[str, ModelSpec] = {
     "hf": ModelSpec(Provider.HF, "hf", 0.0, 0.0),
 }
 
-# Default routing: role → ordered list of model keys to try
+# Default routing: role → ordered list of model keys to try (2026 Latest Models)
 MODEL_ROUTING: dict[AgentRole, list[str]] = {
-    AgentRole.PERSONA:  ["claude-sonnet", "gpt-4o", "deepseek-chat", "qwen-plus"],
+    AgentRole.PERSONA:  ["claude-opus-4", "gpt-5", "deepseek-reasoner", "qwen-3.5-plus"],
     AgentRole.EMOTION:  ["gemini-flash", "claude-haiku", "gpt-4o-mini", "qwen-turbo"],
-    AgentRole.FEATURE:  ["claude-sonnet", "gpt-4o", "deepseek-chat", "qwen-plus"],
+    AgentRole.FEATURE:  ["claude-opus-4", "gpt-5", "deepseek-reasoner", "qwen-3.5-plus"],
     AgentRole.SCAM:     ["claude-haiku", "gpt-4o-mini", "gemini-flash", "deepseek-chat"],
     AgentRole.MEMORY:   ["claude-haiku", "gpt-4o-mini", "gemini-flash", "qwen-turbo"],
-    AgentRole.QUESTION: ["gemini-flash", "claude-haiku", "deepseek-chat", "qwen-turbo"],
+    AgentRole.QUESTION: ["gemini-3-pro", "claude-haiku", "deepseek-chat", "qwen-turbo"],
     AgentRole.GENERAL:  ["claude-haiku", "gpt-4o-mini", "gemini-flash", "deepseek-chat"],
 }
 

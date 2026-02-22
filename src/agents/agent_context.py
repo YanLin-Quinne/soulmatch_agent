@@ -62,6 +62,37 @@ class AgentContext:
     # --- Bot response (written by PersonaAgent) ---
     bot_response: str = ""
 
+    # --- Extended features (v2.0) ---
+    participant_type: str = "bot"  # "bot" | "human"
+    is_human: bool = False
+    extended_features: dict[str, Any] = field(default_factory=dict)
+
+    # --- Relationship prediction (written by RelationshipPredictionAgent) ---
+    relationship_result: Optional[dict] = None
+    rel_status: str = "stranger"
+    rel_type: str = "other"
+    sentiment_label: str = "neutral"
+    can_advance: Optional[bool] = None
+    relationship_snapshots: list[dict] = field(default_factory=list)
+
+    # --- Feature time-series ---
+    feature_history: list[dict] = field(default_factory=list)
+    predicted_feature_changes: dict[str, Any] = field(default_factory=dict)
+
+    # --- Milestone evaluation ---
+    milestone_reports: dict[int, dict] = field(default_factory=dict)
+
+    # --- Virtual space (simplified) ---
+    virtual_room: str = "lobby"
+    virtual_position: tuple[float, float] = (0.0, 0.0)
+
+    # --- Anti-AI mechanism ---
+    reply_delay_seconds: float = 0.0
+
+    # --- Multi-participant session ---
+    session_participants: list[str] = field(default_factory=list)
+    active_pair: tuple[str, str] = ("", "")
+
     # -----------------------------------------------------------------
     # Helpers
     # -----------------------------------------------------------------
@@ -124,3 +155,18 @@ class AgentContext:
         if not self.skill_prompt_additions:
             return ""
         return "\n\n".join(self.skill_prompt_additions)
+
+    def relationship_context_block(self) -> str:
+        """Format relationship state for PersonaAgent injection."""
+        if not self.relationship_result:
+            return ""
+        parts = [
+            f"[Relationship state] {self.rel_status} ({self.rel_type})",
+            f"[Sentiment] {self.sentiment_label}",
+        ]
+        if self.can_advance is not None:
+            parts.append(f"[Can advance] {'Yes' if self.can_advance else 'No/Uncertain'}")
+        if self.extended_features.get("trust_score"):
+            trust = self.extended_features["trust_score"]
+            parts.append(f"[Trust level] {trust:.2f}")
+        return "\n".join(parts)

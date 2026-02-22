@@ -72,6 +72,12 @@ class FeaturePredictionAgent:
         self.predicted_features = updated_f
         self.feature_confidences = updated_c
 
+        # ── v2.0: Infer MBTI from Big Five ──────────
+        self._infer_mbti_from_big_five()
+
+        # ── v2.0: Infer attachment style from personality ──────────
+        self._infer_attachment_style()
+
         # ── Conformal Prediction: calibrate confidence scores ──────────
         if self.conformal and self.conformal.is_fitted:
             self.last_conformal_result = self.conformal.calibrate(
@@ -371,3 +377,91 @@ Guidelines:
             }
 
         return summary
+
+    def _infer_mbti_from_big_five(self):
+        """v2.0: 从Big Five映射推断MBTI类型"""
+        # 基于心理测量学相关性映射
+        # I/E ← extraversion (r=0.74)
+        # S/N ← openness (r=0.72)
+        # T/F ← agreeableness (r=-0.44)
+        # J/P ← conscientiousness (r=0.49)
+
+        e = self.predicted_features.get("big_five_extraversion")
+        o = self.predicted_features.get("big_five_openness")
+        a = self.predicted_features.get("big_five_agreeableness")
+        c = self.predicted_features.get("big_five_conscientiousness")
+
+        if None in [e, o, a, c]:
+            return  # 需要完整Big Five才能推断
+
+        # 计算MBTI轴
+        mbti_ei = e  # 外向性直接映射
+        mbti_sn = o  # 开放性映射到直觉
+        mbti_tf = 1.0 - a  # 宜人性低→思考型
+        mbti_jp = c  # 尽责性映射到判断型
+
+        # 确定类型
+        ei = "E" if mbti_ei > 0.5 else "I"
+        sn = "N" if mbti_sn > 0.5 else "S"
+        tf = "T" if mbti_tf > 0.5 else "F"
+        jp = "J" if mbti_jp > 0.5 else "P"
+        mbti_type = f"{ei}{sn}{tf}{jp}"
+
+        # 置信度 = Big Five平均置信度
+        avg_conf = (
+            self.feature_confidences.get("big_five_extraversion", 0.5) +
+            self.feature_confidences.get("big_five_openness", 0.5) +
+            self.feature_confidences.get("big_five_agreeableness", 0.5) +
+            self.feature_confidences.get("big_five_conscientiousness", 0.5)
+        ) / 4.0
+
+        self.predicted_features["mbti_type"] = mbti_type
+        self.predicted_features["mbti_ei"] = mbti_ei
+        self.predicted_features["mbti_sn"] = mbti_sn
+        self.predicted_features["mbti_tf"] = mbti_tf
+        self.predicted_features["mbti_jp"] = mbti_jp
+        self.feature_confidences["mbti_type"] = avg_conf * 0.8  # 降低20%因为是推断
+        self.feature_confidences["mbti_confidence"] = avg_conf * 0.8
+
+        logger.debug(f"Inferred MBTI: {mbti_type} (conf={avg_conf*0.8:.2f})")
+
+    def _infer_attachment_style(self):
+        """v2.0: 从人格特征推断依恋风格"""
+        # 简化映射规则:
+        # 高神经质 + 低宜人性 → anxious
+        # 低外向性 + 高神经质 → avoidant
+        # 低神经质 + 高宜人性 → secure
+
+        n = self.predicted_features.get("big_five_neuroticism")
+        a = self.predicted_features.get("big_five_agreeableness")
+        e = self.predicted_features.get("big_five_extraversion")
+
+        if None in [n, a, e]:
+            return
+
+        # 计算依恋维度
+        attachment_anxiety = n  # 神经质→焦虑
+        attachment_avoidance = 1.0 - e  # 内向→回避
+
+        # 确定风格
+        if n < 0.4 and a > 0.6:
+            style = "secure"
+        elif n > 0.6 and a < 0.4:
+            style = "anxious"
+        elif e < 0.4 and n > 0.5:
+            style = "avoidant"
+        else:
+            style = "disorganized"
+
+        avg_conf = (
+            self.feature_confidences.get("big_five_neuroticism", 0.5) +
+            self.feature_confidences.get("big_five_agreeableness", 0.5) +
+            self.feature_confidences.get("big_five_extraversion", 0.5)
+        ) / 3.0
+
+        self.predicted_features["attachment_style"] = style
+        self.predicted_features["attachment_anxiety"] = attachment_anxiety
+        self.predicted_features["attachment_avoidance"] = attachment_avoidance
+        self.feature_confidences["attachment_style"] = avg_conf * 0.7
+
+        logger.debug(f"Inferred attachment: {style} (conf={avg_conf*0.7:.2f})")

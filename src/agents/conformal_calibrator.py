@@ -47,6 +47,15 @@ CATEGORICAL_DIMS: Dict[str, List[str]] = {
     "lifestyle_drugs": ["never", "sometimes"],
     "background_education": ["high_school", "some_college", "bachelors", "masters", "phd"],
     "background_religion": ["atheist", "agnostic", "christian", "jewish", "muslim", "hindu", "buddhist", "other"],
+    # v2.0: Extended dimensions
+    "mbti_type": ["ISTJ", "ISFJ", "INFJ", "INTJ", "ISTP", "ISFP", "INFP", "INTP",
+                  "ESTP", "ESFP", "ENFP", "ENTP", "ESTJ", "ESFJ", "ENFJ", "ENTJ"],
+    "attachment_style": ["secure", "anxious", "avoidant", "disorganized"],
+    "love_language": ["words_of_affirmation", "quality_time", "receiving_gifts", "acts_of_service", "physical_touch"],
+    "relationship_status": ["stranger", "acquaintance", "crush", "dating", "committed"],
+    "relationship_type": ["love", "friendship", "family", "other"],
+    "sentiment": ["positive", "neutral", "negative"],
+    "can_advance": ["yes", "no", "uncertain"],
 }
 
 # Continuous dimensions → discretized into bins for conformal prediction
@@ -66,6 +75,14 @@ CONTINUOUS_BINS: Dict[str, List[Tuple[str, float, float]]] = {
     "interest_tech":     [("none", 0.0, 0.33), ("moderate", 0.33, 0.67), ("strong", 0.67, 1.01)],
     "interest_outdoors": [("none", 0.0, 0.33), ("moderate", 0.33, 0.67), ("strong", 0.67, 1.01)],
     "interest_books":    [("none", 0.0, 0.33), ("moderate", 0.33, 0.67), ("strong", 0.67, 1.01)],
+    # v2.0: Extended continuous dimensions
+    "mbti_ei": [("introvert", 0.0, 0.5), ("extravert", 0.5, 1.01)],
+    "mbti_sn": [("sensing", 0.0, 0.5), ("intuition", 0.5, 1.01)],
+    "mbti_tf": [("thinking", 0.0, 0.5), ("feeling", 0.5, 1.01)],
+    "mbti_jp": [("judging", 0.0, 0.5), ("perceiving", 0.5, 1.01)],
+    "attachment_anxiety": [("low", 0.0, 0.33), ("medium", 0.33, 0.67), ("high", 0.67, 1.01)],
+    "attachment_avoidance": [("low", 0.0, 0.33), ("medium", 0.33, 0.67), ("high", 0.67, 1.01)],
+    "trust_score": [("low", 0.0, 0.33), ("medium", 0.33, 0.67), ("high", 0.67, 1.01)],
 }
 
 # Age bins (special handling)

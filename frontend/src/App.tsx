@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import RelationshipTab from './components/RelationshipTab';
 
 const WS_BASE = 'ws://localhost:8000';
 
@@ -105,8 +106,8 @@ function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('soulmate-theme') as 'dark' | 'light') || 'dark';
   });
-  const [activeTab, setActiveTab] = useState<'predict' | 'emotion' | 'safety' | 'memory'>('predict');
-  
+  const [activeTab, setActiveTab] = useState<'predict' | 'emotion' | 'safety' | 'memory' | 'relationship'>('predict');
+
   // New data states for sidebar
   const [featureData, setFeatureData] = useState<FeatureData | null>(null);
   const [emotionHistory, setEmotionHistory] = useState<EmotionEntry[]>([]);
@@ -114,6 +115,17 @@ function App() {
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [contextData, setContextData] = useState<any>(null);
   const [sidebarOpen] = useState(true);
+
+  // v2.0: Relationship prediction states
+  const [relationshipData, setRelationshipData] = useState<{
+    rel_status: string;
+    rel_type: string;
+    sentiment: string;
+    can_advance: boolean;
+    advance_prediction_set: string[];
+  } | null>(null);
+  const [milestoneReport, setMilestoneReport] = useState<any>(null);
+  const [trustHistory, setTrustHistory] = useState<{ turn: number; trust: number }[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -183,6 +195,20 @@ function App() {
         case 'feature_update':
           if (data.data) {
             setFeatureData(data.data);
+          }
+          break;
+        case 'relationship_prediction':
+          if (data.data) {
+            setRelationshipData(data.data);
+            // Track trust score history
+            const trust = data.data.trust_score ?? 0.5;
+            setTrustHistory((prev) => [...prev, { turn: data.data.turn ?? 0, trust }]);
+          }
+          break;
+        case 'milestone_report':
+          if (data.data) {
+            setMilestoneReport(data.data);
+            setActiveTab('relationship');
           }
           break;
         case 'context':
@@ -390,14 +416,25 @@ function App() {
                   </svg>
                   Safety
                 </button>
-                <button 
-                  className={`sidebar-tab ${activeTab === 'memory' ? 'active' : ''}`} 
+                <button
+                  className={`sidebar-tab ${activeTab === 'memory' ? 'active' : ''}`}
                   onClick={() => setActiveTab('memory')}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
                   </svg>
                   Memory
+                </button>
+                <button
+                  className={`sidebar-tab ${activeTab === 'relationship' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('relationship')}
+                  style={{ position: 'relative' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                  Relation
+                  {milestoneReport && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#a855f7' }} />}
                 </button>
               </div>
 
@@ -628,6 +665,15 @@ function App() {
                       </div>
                     )}
                   </>
+                )}
+
+                {activeTab === 'relationship' && (
+                  <RelationshipTab
+                    relationshipData={relationshipData}
+                    milestoneReport={milestoneReport}
+                    trustHistory={trustHistory}
+                    turnCount={turnCount}
+                  />
                 )}
               </div>
             </aside>

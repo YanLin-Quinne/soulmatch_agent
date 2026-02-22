@@ -16,6 +16,10 @@ from src.agents.agent_context import AgentContext
 from src.memory.memory_manager import MemoryManager
 from src.matching.matching_engine import MatchingEngine
 from src.data.schema import PersonaProfile
+# v2.0: New agents
+from src.agents.relationship_prediction_agent import RelationshipPredictionAgent
+from src.agents.feature_transition_predictor import FeatureTransitionPredictor
+from src.agents.milestone_evaluator import MilestoneEvaluator
 
 
 class OrchestratorAgent:
@@ -45,6 +49,13 @@ class OrchestratorAgent:
         self.question_agent = QuestionStrategyAgent()
         self.discussion_engine = DiscussionEngine(min_turns_to_trigger=3)
         self.matching_engine = MatchingEngine()
+
+        # v2.0: New agents
+        from src.agents.llm_router import router
+        self.relationship_agent = RelationshipPredictionAgent(router)
+        self.feature_transition_predictor = FeatureTransitionPredictor()
+        self.milestone_evaluator = MilestoneEvaluator()
+
         register_builtin_skills()
 
         self.ctx = AgentContext(user_id=user_id)
@@ -124,6 +135,57 @@ class OrchestratorAgent:
             result = self._update_features()
             response["feature_update"] = result
             self.state_machine.handle_feature_updated()
+
+            # v2.0: Feature transition prediction (every 3 turns)
+            if self.ctx.turn_count % 3 == 0:
+                emotion_trend = self._compute_emotion_trend()
+                transition_pred = self.feature_transition_predictor.predict_next(
+                    current_features=self.ctx.predicted_features,
+                    emotion_trend=emotion_trend,
+                    relationship_status=self.ctx.rel_status,
+                    memory_trigger=("memory_update" in actions),
+                )
+                self.ctx.predicted_feature_changes = transition_pred
+                response["feature_transition"] = {
+                    "likely_to_change": transition_pred["likely_to_change"],
+                    "change_probability": transition_pred["change_probability"],
+                }
+
+        # --- Phase 2.5: Relationship prediction (every 5 turns + milestones) ---
+        if self.ctx.turn_count % 5 == 0 or self.ctx.turn_count in [10, 30]:
+            # 同步调用async函数
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            rel_result = loop.run_until_complete(self.relationship_agent.execute(self.ctx))
+            if rel_result:
+                response["relationship_prediction"] = {
+                    "rel_status": rel_result.get("rel_status"),
+                    "rel_type": rel_result.get("rel_type"),
+                    "sentiment": rel_result.get("sentiment"),
+                    "can_advance": rel_result.get("can_advance"),
+                    "advance_prediction_set": rel_result.get("advance_prediction_set"),
+                }
+                # Update extended features
+                self.ctx.extended_features["trust_score"] = self.ctx.extended_features.get("trust_score", 0.5)
+                self.ctx.extended_features["relationship_status"] = rel_result.get("rel_status")
+                self.ctx.extended_features["sentiment_label"] = rel_result.get("sentiment")
+
+        # --- Phase 2.6: Milestone evaluation (turn 10/30) ---
+        if self.ctx.turn_count in [10, 30]:
+            milestone_report = self.milestone_evaluator.evaluate(
+                turn=self.ctx.turn_count,
+                feature_history=self.ctx.feature_history,
+                relationship_snapshots=self.ctx.relationship_snapshots,
+                current_features=self.ctx.predicted_features,
+            )
+            if milestone_report:
+                self.ctx.milestone_reports[self.ctx.turn_count] = milestone_report
+                response["milestone_report"] = milestone_report
 
         # --- Phase 3: question strategy (needs features) ---
         self._update_question_strategy()
@@ -242,6 +304,29 @@ class OrchestratorAgent:
             "reasoning": action.reasoning,
             "memories_affected": len(memories) if memories else 0,
         }
+
+    def _compute_emotion_trend(self) -> str:
+        """v2.0: 计算情绪趋势(improving/declining/stable)"""
+        if len(self.ctx.emotion_history) < 3:
+            return "stable"
+
+        # 简化映射: positive情绪→+1, negative→-1
+        valence_map = {
+            "joy": 1.0, "excitement": 0.8, "interest": 0.6, "trust": 0.7,
+            "sadness": -0.7, "anger": -0.9, "fear": -0.6, "disgust": -0.8,
+            "neutral": 0.0, "surprise": 0.3,
+        }
+
+        recent_3 = self.ctx.emotion_history[-3:]
+        valences = [valence_map.get(e, 0.0) for e in recent_3]
+
+        # 简单线性趋势
+        if valences[-1] > valences[0] + 0.2:
+            return "improving"
+        elif valences[-1] < valences[0] - 0.2:
+            return "declining"
+        else:
+            return "stable"
 
     # ------------------------------------------------------------------
 
