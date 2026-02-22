@@ -22,7 +22,9 @@
       "extraversion": 0.55,
       "agreeableness": 0.80,
       "neuroticism": 0.40,
-      "relationship_goals": "seeking meaningful connection"
+      "relationship_goals": "serious",
+      "goals_confidence": 0.85,
+      "personality_summary": "Policy analyst who values deep conversations and exploring new perspectives"
     }
   },
   {
@@ -48,7 +50,9 @@
       "extraversion": 0.75,
       "agreeableness": 0.85,
       "neuroticism": 0.35,
-      "relationship_goals": "looking for someone who appreciates art and beauty"
+      "relationship_goals": "casual",
+      "goals_confidence": 0.75,
+      "personality_summary": "Office admin with a passion for music and finding beauty in everyday moments"
     }
   },
   {
@@ -74,7 +78,9 @@
       "extraversion": 0.65,
       "agreeableness": 0.75,
       "neuroticism": 0.30,
-      "relationship_goals": "seeking adventure partner"
+      "relationship_goals": "serious",
+      "goals_confidence": 0.82,
+      "personality_summary": "Math teacher who loves hiking and believes in work-life balance"
     }
   },
   {
@@ -100,7 +106,9 @@
       "extraversion": 0.60,
       "agreeableness": 0.70,
       "neuroticism": 0.35,
-      "relationship_goals": "looking for intellectual equal"
+      "relationship_goals": "serious",
+      "goals_confidence": 0.88,
+      "personality_summary": "Software developer passionate about building meaningful products"
     }
   },
   {
@@ -126,7 +134,9 @@
       "extraversion": 0.85,
       "agreeableness": 0.75,
       "neuroticism": 0.25,
-      "relationship_goals": "seeking supportive partner"
+      "relationship_goals": "serious",
+      "goals_confidence": 0.90,
+      "personality_summary": "VP Operations who values teamwork and enjoys competitive sports"
     }
   },
   {
@@ -152,7 +162,9 @@
       "extraversion": 0.55,
       "agreeableness": 0.72,
       "neuroticism": 0.32,
-      "relationship_goals": "looking for active lifestyle partner"
+      "relationship_goals": "serious",
+      "goals_confidence": 0.85,
+      "personality_summary": "Financial analyst who balances spreadsheets with trail running"
     }
   },
   {
@@ -178,7 +190,9 @@
       "extraversion": 0.70,
       "agreeableness": 0.80,
       "neuroticism": 0.40,
-      "relationship_goals": "seeking creative soul"
+      "relationship_goals": "casual",
+      "goals_confidence": 0.78,
+      "personality_summary": "Freelancer who values independence and creative expression"
     }
   },
   {
@@ -204,7 +218,9 @@
       "extraversion": 0.90,
       "agreeableness": 0.78,
       "neuroticism": 0.28,
-      "relationship_goals": "looking for life partner"
+      "relationship_goals": "serious",
+      "goals_confidence": 0.92,
+      "personality_summary": "Sales director who loves closing deals and opening new horizons"
     }
   }
 ]
