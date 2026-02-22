@@ -68,20 +68,23 @@ class OrchestratorAgent:
     # Start conversation
     # ------------------------------------------------------------------
 
-    def start_new_conversation(self) -> Dict[str, Any]:
+    def start_new_conversation(self, bot_id: Optional[str] = None) -> Dict[str, Any]:
         bot_summaries = self.bot_pool.get_agent_summaries()
         if not bot_summaries:
             return {"success": False, "error": "No bots available"}
 
+        # Use bot_id parameter first, then fall back to self.preferred_bot_id
+        preferred_bot_id = bot_id or self.preferred_bot_id
+
         # If preferred_bot_id is provided, use it directly
-        if self.preferred_bot_id:
-            if self.preferred_bot_id in bot_summaries:
-                selected_bot_id = self.preferred_bot_id
+        if preferred_bot_id:
+            if preferred_bot_id in bot_summaries:
+                selected_bot_id = preferred_bot_id
                 compatibility_score = 0.85  # High score for user-selected bot
                 match_explanation = "You selected this match!"
                 logger.info(f"Using user-selected bot: {selected_bot_id}")
             else:
-                logger.warning(f"Preferred bot_id {self.preferred_bot_id} not found, falling back to random")
+                logger.warning(f"Preferred bot_id {preferred_bot_id} not found, falling back to random")
                 selected_bot_id = random.choice(list(bot_summaries.keys()))
                 compatibility_score = 0.5
                 match_explanation = "Let's see if you two click!"

@@ -44,8 +44,8 @@ class ChatHandler:
                     "error": "Failed to create session"
                 }
             
-            # Start new conversation
-            result = orchestrator.start_new_conversation()
+            # Start new conversation with specified bot_id
+            result = orchestrator.start_new_conversation(bot_id=bot_id)
             
             logger.info(f"Started conversation for user {user_id}: {result.get('success', False)}")
             return result
