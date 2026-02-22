@@ -56,7 +56,7 @@ class RelationshipPredictionAgent:
         rel_assessment = await self._multi_role_assessment(ctx, compressed_context)
 
         # Step 4: 共形预测 → can_advance
-        conformal_result = self._conformal_predict_advance(ctx, rel_assessment)
+        conformal_result = await self._conformal_predict_advance(ctx, rel_assessment, sentiment)
 
         # Step 5: t+1预测
         next_status = self._predict_next_status(rel_assessment["rel_status"])
@@ -71,7 +71,10 @@ class RelationshipPredictionAgent:
             "rel_status_probs": rel_assessment["rel_status_probs"],
             "can_advance": conformal_result["can_advance"],
             "advance_prediction_set": conformal_result["prediction_set"],
-            "advance_coverage_guarantee": 0.9,
+            "advance_coverage_guarantee": conformal_result.get("coverage_guarantee", 0.9),
+            "advance_softmax": conformal_result.get("softmax_distribution", {}),
+            "blockers": conformal_result.get("blockers", []),
+            "catalysts": conformal_result.get("catalysts", []),
             "next_status_prediction": next_status["status"],
             "next_status_probs": next_status["probs"],
             "reasoning_trace": rel_assessment.get("reasoning", ""),
@@ -290,33 +293,222 @@ Constraints:
                 "reasoning": "Parse error",
             }
 
-    def _conformal_predict_advance(self, ctx: AgentContext, rel_assessment: Dict) -> Dict[str, Any]:
-        """Step 4: 共形预测 → can_advance prediction set"""
-        # 特征: rel_status, sentiment, trust_score, turn
+    async def _conformal_predict_advance(self, ctx: AgentContext, rel_assessment: Dict, sentiment: Dict) -> Dict[str, Any]:
+        """
+        Step 4: 真正的共形预测 → can_advance prediction set
+
+        实现完整的共形预测流程:
+        1. LLM多次采样获取softmax分布
+        2. 调用calibrator.calibrate()生成预测集
+        3. 有序边界调整(ordinal boundary)
+        4. blockers/catalysts结构化分析
+        """
+        # 1. 准备特征向量
+        features = {
+            "relationship_status": rel_assessment["rel_status"],
+            "sentiment": sentiment["label"],
+            "trust_score": ctx.extended_features.get("trust_score", 0.5),
+            "turn": ctx.turn_count,
+        }
+
+        # 2. LLM多次采样获取can_advance的softmax分布
+        softmax_dist = await self._sample_advance_distribution(ctx, rel_assessment, sentiment, n_samples=5)
+
+        # 3. 构造预测字典和置信度字典
+        predictions = {
+            "can_advance": self._get_point_prediction_from_softmax(softmax_dist),
+            "relationship_status": rel_assessment["rel_status"],
+            "sentiment": sentiment["label"],
+        }
+
+        llm_confidences = {
+            "can_advance": max(softmax_dist.values()) if softmax_dist else 0.5,
+            "relationship_status": rel_assessment.get("rel_status_confidence", 0.7),
+            "sentiment": sentiment.get("confidence", 0.7),
+        }
+
+        # 4. 调用ConformalCalibrator生成预测集
+        conformal_result = self.calibrator.calibrate(
+            predictions=predictions,
+            llm_confidences=llm_confidences,
+            turn=ctx.turn_count
+        )
+
+        # 5. 提取can_advance的预测集
+        can_advance_ps = conformal_result.prediction_sets.get("can_advance")
+
+        if can_advance_ps:
+            prediction_set = can_advance_ps.prediction_set
+            point_prediction = can_advance_ps.point_prediction
+            can_advance = (point_prediction == "yes")
+        else:
+            # Fallback: 如果没有校准数据,使用规则
+            prediction_set = self._fallback_prediction_set(features)
+            can_advance = ("yes" in prediction_set)
+
+        # 6. 有序边界调整(ordinal boundary)
+        # 关系状态是有序的: stranger < acquaintance < crush < dating < committed
+        # 如果已经是最高状态,不能再推进
         status_order = ["stranger", "acquaintance", "crush", "dating", "committed"]
         current_idx = status_order.index(rel_assessment["rel_status"]) if rel_assessment["rel_status"] in status_order else 0
         is_max = (current_idx >= len(status_order) - 1)
 
-        # 简化规则: 如果已到最高状态,不能推进
         if is_max:
-            return {"can_advance": False, "prediction_set": ["no"]}
+            # 强制约束: 已到最高状态,不能推进
+            prediction_set = ["no"]
+            can_advance = False
 
-        # 否则基于trust_score和sentiment
-        trust = ctx.extended_features.get("trust_score", 0.5)
-        sentiment = ctx.sentiment_label
+        # 7. blockers/catalysts结构化分析
+        blockers, catalysts = await self._analyze_blockers_catalysts(ctx, rel_assessment)
 
-        # 点预测
+        return {
+            "can_advance": can_advance,
+            "prediction_set": prediction_set,
+            "coverage_guarantee": 1 - self.calibrator.alpha,
+            "softmax_distribution": softmax_dist,
+            "blockers": blockers,
+            "catalysts": catalysts,
+            "conformal_result": conformal_result,
+        }
+
+    async def _sample_advance_distribution(self, ctx: AgentContext, rel_assessment: Dict, sentiment: Dict, n_samples: int = 5) -> Dict[str, float]:
+        """
+        LLM多次采样获取can_advance的softmax分布
+
+        Args:
+            ctx: 对话上下文
+            rel_assessment: 关系评估结果
+            sentiment: 情感分析结果
+            n_samples: 采样次数
+
+        Returns:
+            {"yes": 0.6, "no": 0.2, "uncertain": 0.2}
+        """
+        prompt = f"""
+Based on the current relationship assessment, predict whether the relationship can advance to the next stage.
+
+Current Status: {rel_assessment["rel_status"]}
+Sentiment: {sentiment["label"]}
+Trust Score: {ctx.extended_features.get("trust_score", 0.5):.2f}
+Turn: {ctx.turn_count}
+
+Respond with JSON:
+{{
+    "can_advance": "yes" | "no" | "uncertain",
+    "confidence": 0.0-1.0,
+    "reasoning": "brief explanation"
+}}
+"""
+
+        # 多次采样
+        samples = []
+        for _ in range(n_samples):
+            try:
+                response = self.llm.chat(
+                    role=AgentRole.GENERAL,
+                    system="You are a relationship progression predictor.",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.7,  # 增加温度以获得多样性
+                    max_tokens=200,
+                    json_mode=True,
+                )
+
+                # 解析JSON
+                response = response.strip()
+                if response.startswith("```json"):
+                    response = response[7:]
+                if response.startswith("```"):
+                    response = response[3:]
+                if response.endswith("```"):
+                    response = response[:-3]
+
+                result = json.loads(response.strip())
+                samples.append(result["can_advance"])
+            except Exception as e:
+                logger.warning(f"[RelationshipPredictionAgent] Sampling failed: {e}")
+                continue
+
+        # 计算softmax分布
+        if not samples:
+            # Fallback: 均匀分布
+            return {"yes": 0.33, "no": 0.33, "uncertain": 0.34}
+
+        # 统计频率
+        from collections import Counter
+        counts = Counter(samples)
+        total = len(samples)
+
+        softmax = {
+            "yes": counts.get("yes", 0) / total,
+            "no": counts.get("no", 0) / total,
+            "uncertain": counts.get("uncertain", 0) / total,
+        }
+
+        return softmax
+
+    def _get_point_prediction_from_softmax(self, softmax: Dict[str, float]) -> str:
+        """从softmax分布中获取点预测"""
+        if not softmax:
+            return "uncertain"
+        return max(softmax, key=softmax.get)
+
+    def _fallback_prediction_set(self, features: Dict) -> list:
+        """Fallback规则(当没有校准数据时)"""
+        trust = features.get("trust_score", 0.5)
+        sentiment = features.get("sentiment", "neutral")
+
         if trust > 0.7 and sentiment == "positive":
-            can_advance = True
-            pred_set = ["yes"]
+            return ["yes"]
         elif trust < 0.4 or sentiment == "negative":
-            can_advance = False
-            pred_set = ["no"]
+            return ["no"]
         else:
-            can_advance = False
-            pred_set = ["uncertain", "yes"]  # 不确定集合
+            return ["uncertain", "yes"]
 
-        return {"can_advance": can_advance, "prediction_set": pred_set}
+    async def _analyze_blockers_catalysts(self, ctx: AgentContext, rel_assessment: Dict) -> tuple:
+        """
+        结构化分析blockers和catalysts
+
+        Returns:
+            (blockers: List[str], catalysts: List[str])
+        """
+        prompt = f"""
+Analyze what factors are blocking or catalyzing relationship progression.
+
+Current Status: {rel_assessment["rel_status"]}
+Sentiment: {rel_assessment["sentiment"]}
+Recent Conversation: {ctx.recent_history(5)}
+
+Respond with JSON:
+{{
+    "blockers": ["factor1", "factor2", ...],
+    "catalysts": ["factor1", "factor2", ...]
+}}
+"""
+
+        try:
+            response = self.llm.chat(
+                role=AgentRole.GENERAL,
+                system="You are a relationship dynamics analyzer.",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=300,
+                json_mode=True,
+            )
+
+            # 解析JSON
+            response = response.strip()
+            if response.startswith("```json"):
+                response = response[7:]
+            if response.startswith("```"):
+                response = response[3:]
+            if response.endswith("```"):
+                response = response[:-3]
+
+            result = json.loads(response.strip())
+            return result.get("blockers", []), result.get("catalysts", [])
+        except Exception as e:
+            logger.warning(f"[RelationshipPredictionAgent] Blockers/catalysts analysis failed: {e}")
+            return [], []
 
     def _predict_next_status(self, current_status: str) -> Dict[str, Any]:
         """Step 5: t+1预测(简单马尔可夫转移)"""
