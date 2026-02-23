@@ -119,7 +119,7 @@ def load_bot_pool():
 
     # Determine which API to use
     use_claude = bool(settings.anthropic_api_key)
-    bot_pool = PersonaAgentPool(use_claude=use_claude, temperature=0.8)
+    bot_pool = PersonaAgentPool(temperature=0.8)
 
     personas = [PersonaProfile(**p) for p in personas_data]
     bot_pool.load_personas(personas)
@@ -134,13 +134,12 @@ def load_bot_pool():
 class ChatSession:
     """Per-user chat session state"""
 
-    def __init__(self, bot_agent: PersonaAgent, use_claude: bool):
+    def __init__(self, bot_agent: PersonaAgent, use_claude: bool = False):
         self.bot_agent = bot_agent
-        self.use_claude = use_claude
         self.turn = 0
-        self.emotion_agent = EmotionAgent(use_claude=use_claude)
+        self.emotion_agent = EmotionAgent()
         self.scam_agent = ScamDetectionAgent(use_semantic=False)
-        self.feature_agent = FeaturePredictionAgent("gradio_user", use_claude=use_claude)
+        self.feature_agent = FeaturePredictionAgent("gradio_user")
         self.conversation_history: list[dict] = []
 
     def chat(self, user_message: str) -> tuple[str, str, str]:
