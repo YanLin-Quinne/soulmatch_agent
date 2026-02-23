@@ -157,6 +157,7 @@ function App() {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isUnmountedRef = useRef(false);
+  const selectedCharRef = useRef<Character | null>(null);
 
   // Theme effect
   useEffect(() => {
@@ -173,6 +174,10 @@ function App() {
 
     websocket.onopen = () => {
       setIsConnected(true);
+      // Reconnect: re-send start if user was in a chat
+      if (selectedCharRef.current) {
+        websocket.send(JSON.stringify({ action: 'start', bot_id: selectedCharRef.current.id }));
+      }
       // Start ping heartbeat every 20s
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = setInterval(() => {
@@ -195,11 +200,18 @@ function App() {
           if (data.data) {
             const d = data.data;
             if (d.bot_profile) setCurrentBot(prev => ({ ...prev!, ...d.bot_profile }));
+            // Only show greeting on first connect, not on reconnect
             if (d.greeting) {
-              setMessages(prev => [...prev, { id: `bot-${Date.now()}`, sender: 'bot', content: d.greeting, timestamp: new Date() }]);
-            }
-            if (d.match_explanation) {
-              setMessages(prev => [...prev, { id: `sys-${Date.now()}`, sender: 'system', content: `Match: ${d.match_explanation} (score: ${(d.compatibility_score * 100).toFixed(0)}%)`, timestamp: new Date() }]);
+              setMessages(prev => {
+                if (prev.length === 0) {
+                  const msgs: typeof prev = [{ id: `bot-${Date.now()}`, sender: 'bot', content: d.greeting, timestamp: new Date() }];
+                  if (d.match_explanation) {
+                    msgs.push({ id: `sys-${Date.now()}`, sender: 'system', content: `Match: ${d.match_explanation} (score: ${(d.compatibility_score * 100).toFixed(0)}%)`, timestamp: new Date() });
+                  }
+                  return msgs;
+                }
+                return prev;
+              });
             }
           }
           break;
@@ -300,6 +312,7 @@ function App() {
 
   const handleCardClick = (char: Character) => {
     setSelectedChar(char);
+    selectedCharRef.current = char;
     setPage('chat');
     setMessages([]);
     setEmotion(null);
@@ -335,6 +348,7 @@ function App() {
   const handleBack = () => {
     setPage('select');
     setSelectedChar(null);
+    selectedCharRef.current = null;
     setCurrentBot(null);
     setMessages([]);
     setEmotion(null);
