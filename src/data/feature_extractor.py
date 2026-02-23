@@ -110,7 +110,7 @@ Respond with ONLY the JSON object, no explanation."""
             
             if self.use_claude:
                 response = self.client.messages.create(
-                    model="claude-sonnet-4-20250514",
+                    model="claude-opus-4-6",
                     max_tokens=1024,
                     temperature=0.3,
                     messages=[{
@@ -121,7 +121,7 @@ Respond with ONLY the JSON object, no explanation."""
                 content = response.content[0].text
             else:
                 response = self.client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="gpt-5.2-2025-12-11",
                     messages=[{
                         "role": "user",
                         "content": prompt

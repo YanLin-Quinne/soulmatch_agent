@@ -520,5 +520,25 @@ CRITICAL: Only include facts explicitly present in the dialogue. Do NOT infer or
             "episodic_memory_count": len(self.episodic_memory),
             "semantic_memory_count": len(self.semantic_memory),
             "total_turns_covered": self.current_turn,
-            "compression_ratio": len(self.episodic_memory) * 10 / max(self.current_turn, 1)
+            "compression_ratio": len(self.episodic_memory) * 10 / max(self.current_turn, 1),
+            "episodic_memories": [
+                {
+                    "episode_id": ep.episode_id,
+                    "turn_range": list(ep.turn_range),
+                    "summary": ep.summary,
+                    "key_events": ep.key_events,
+                    "emotion_trend": ep.emotion_trend,
+                }
+                for ep in self.episodic_memory
+            ],
+            "semantic_memories": [
+                {
+                    "reflection_id": sem.reflection_id,
+                    "turn_range": list(sem.turn_range),
+                    "reflection": sem.reflection,
+                    "feature_updates": sem.feature_updates,
+                    "relationship_insights": sem.relationship_insights,
+                }
+                for sem in self.semantic_memory
+            ],
         }

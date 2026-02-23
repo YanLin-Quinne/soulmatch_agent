@@ -300,7 +300,9 @@ class OrchestratorAgent:
                             "vote": v.vote,
                             "rel_status": v.rel_status,
                             "confidence": round(v.confidence, 2),
-                            "reasoning": v.reasoning[:120],
+                            "reasoning": v.reasoning,
+                            "key_factors": getattr(v, 'key_factors', []),
+                            "demographics": getattr(v, 'agent_demographics', {}),
                         })
 
                 result["relationship_prediction"] = {

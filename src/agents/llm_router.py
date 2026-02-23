@@ -54,24 +54,24 @@ class ModelSpec:
     output_cost_per_1k: float = 0.0  # USD per 1K output tokens
 
 
-# Available models — ordered by quality within each provider (2026-02-22 Latest)
+# Available models — ordered by quality within each provider (2026-02-23 Latest)
 MODELS: dict[str, ModelSpec] = {
-    # Anthropic Claude Opus 4.6 (2026)
-    "claude-opus-4": ModelSpec(Provider.ANTHROPIC, "claude-opus-4-6", 0.015, 0.075),
+    # Anthropic Claude Opus 4.6 (2026-02, PRIMARY)
+    "claude-opus-4": ModelSpec(Provider.ANTHROPIC, "claude-opus-4-6", 0.005, 0.025),
     "claude-sonnet": ModelSpec(Provider.ANTHROPIC, "claude-sonnet-4-20250514", 0.003, 0.015),
     "claude-haiku": ModelSpec(Provider.ANTHROPIC, "claude-haiku-4-20250414", 0.00025, 0.00125),
-    # OpenAI GPT-5.2 (2026)
-    "gpt-5": ModelSpec(Provider.OPENAI, "gpt-5.2", 0.010, 0.030),
+    # OpenAI GPT-5.2 (2026-02)
+    "gpt-5": ModelSpec(Provider.OPENAI, "gpt-5.2-2025-12-11", 0.00175, 0.00525),
     "gpt-4o": ModelSpec(Provider.OPENAI, "gpt-4o", 0.005, 0.015),
     "gpt-4o-mini": ModelSpec(Provider.OPENAI, "gpt-4o-mini", 0.00015, 0.0006),
-    # Google Gemini 3.1 Pro Preview / 2.5 Flash (2026)
+    # Google Gemini 3.1 Pro Preview (2026-02)
     "gemini-3-pro": ModelSpec(Provider.GEMINI, "gemini-3.1-pro-preview", 0.002, 0.008),
     "gemini-flash": ModelSpec(Provider.GEMINI, "gemini-2.5-flash", 0.0001, 0.0004),
     "gemini-pro": ModelSpec(Provider.GEMINI, "gemini-2.5-pro-preview-06-05", 0.00125, 0.01),
-    # DeepSeek V3.2 Reasoner (2026)
+    # DeepSeek V3.2 Reasoner (2026-02, reasoning mode)
     "deepseek-reasoner": ModelSpec(Provider.DEEPSEEK, "deepseek-reasoner", 0.00055, 0.0022),
     "deepseek-chat": ModelSpec(Provider.DEEPSEEK, "deepseek-chat", 0.00014, 0.00028),
-    # Qwen 3 Max (2026)
+    # Qwen 3.5 Plus (2026-02)
     "qwen-max": ModelSpec(Provider.QWEN, "qwen3-max", 0.0008, 0.0024),
     "qwen-plus": ModelSpec(Provider.QWEN, "qwen3.5-plus", 0.0004, 0.0012),
     "qwen-turbo": ModelSpec(Provider.QWEN, "qwen-turbo", 0.0001, 0.0002),
@@ -81,15 +81,16 @@ MODELS: dict[str, ModelSpec] = {
     "hf": ModelSpec(Provider.HF, "hf", 0.0, 0.0),
 }
 
-# Default routing: role → ordered list of model keys to try (最适配策略)
+# Default routing: role → ordered list of model keys to try
+# Claude Opus 4.6 优先用于高质量任务，低成本任务用 Qwen/DeepSeek
 MODEL_ROUTING: dict[AgentRole, list[str]] = {
-    AgentRole.PERSONA:  ["gpt-5", "deepseek-reasoner", "gemini-flash", "qwen-max"],  # 角色扮演需要高质量
-    AgentRole.EMOTION:  ["gemini-flash", "gpt-4o-mini", "deepseek-chat"],  # 情绪分类速度优先
-    AgentRole.FEATURE:  ["gpt-5", "deepseek-reasoner", "gemini-flash", "qwen-max"],  # 特征推理需要推理能力
-    AgentRole.SCAM:     ["gemini-flash", "gpt-4o-mini", "deepseek-chat"],  # 诈骗检测速度优先
-    AgentRole.MEMORY:   ["gemini-flash", "gpt-4o-mini", "deepseek-chat"],  # 记忆决策速度优先
-    AgentRole.QUESTION: ["gemini-flash", "deepseek-chat", "gpt-4o-mini"],  # 问题策略速度优先
-    AgentRole.GENERAL:  ["gemini-flash", "gpt-4o-mini", "deepseek-chat"],  # 通用任务速度优先
+    AgentRole.PERSONA:  ["claude-opus-4", "gpt-5", "deepseek-reasoner", "gemini-3-pro", "qwen-plus"],
+    AgentRole.EMOTION:  ["qwen-plus", "gemini-flash", "deepseek-chat", "gpt-5"],
+    AgentRole.FEATURE:  ["claude-opus-4", "deepseek-reasoner", "gpt-5", "gemini-3-pro", "qwen-plus"],
+    AgentRole.SCAM:     ["qwen-plus", "gemini-flash", "deepseek-chat", "gpt-5"],
+    AgentRole.MEMORY:   ["qwen-plus", "deepseek-chat", "gemini-flash", "gpt-5"],
+    AgentRole.QUESTION: ["qwen-plus", "deepseek-chat", "gemini-flash", "gpt-5"],
+    AgentRole.GENERAL:  ["qwen-plus", "deepseek-chat", "gemini-flash", "gpt-5"],
 }
 
 

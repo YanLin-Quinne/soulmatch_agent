@@ -67,6 +67,19 @@ interface FeatureData {
   turn: number;
   low_confidence: string[];
   average_confidence: number;
+  conformal?: {
+    coverage_guarantee: number;
+    avg_set_size: number;
+    singletons: number;
+    total_dims: number;
+    prediction_sets: Record<string, {
+      set: string[];
+      point: string;
+      size: number;
+      llm_conf: number;
+      calibrated_conf: number;
+    }>;
+  };
 }
 
 interface MemoryItem {
@@ -136,6 +149,8 @@ function App() {
     episodic_memory_count: number;
     semantic_memory_count: number;
     compression_ratio: number;
+    episodic_memories?: { episode_id: string; turn_range: number[]; summary: string; key_events: string[]; emotion_trend: string }[];
+    semantic_memories?: { reflection_id: string; turn_range: number[]; reflection: string; feature_updates: Record<string, any>; relationship_insights: string }[];
   } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -581,6 +596,45 @@ function App() {
                             </div>
                           </div>
                         )}
+
+                        {/* Conformal Prediction Sets */}
+                        {featureData.conformal && (
+                          <div className="sidebar-section">
+                            <h4>Conformal Prediction</h4>
+                            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                              <span className="cp-badge cp-badge-coverage">
+                                Coverage: {Math.round(featureData.conformal.coverage_guarantee * 100)}%
+                              </span>
+                              <span className="cp-badge cp-badge-sets">
+                                Avg Set: {featureData.conformal.avg_set_size.toFixed(1)}
+                              </span>
+                              <span className="cp-badge cp-badge-singletons">
+                                Singletons: {featureData.conformal.singletons}/{featureData.conformal.total_dims}
+                              </span>
+                            </div>
+                            <div className="cp-sets-list">
+                              {Object.entries(featureData.conformal.prediction_sets).map(([dim, ps]) => (
+                                <div key={dim} className="cp-set-item">
+                                  <div className="cp-set-header">
+                                    <span className="cp-dim-name">{dim.replace(/_/g, ' ')}</span>
+                                    <span className="cp-point-pred">{ps.point}</span>
+                                  </div>
+                                  <div className="cp-set-tags">
+                                    {ps.set.map((val, i) => (
+                                      <span key={i} className={`cp-set-tag ${val === ps.point ? 'cp-set-tag-point' : ''}`}>
+                                        {val}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <div className="cp-conf-row">
+                                    <span>LLM: {Math.round(ps.llm_conf * 100)}%</span>
+                                    <span style={{ color: 'var(--accent)' }}>Calibrated: {Math.round(ps.calibrated_conf * 100)}%</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="placeholder">Waiting for prediction data...</div>
@@ -706,6 +760,67 @@ function App() {
                             <span className="value">{(memoryStats.compression_ratio * 100).toFixed(0)}%</span>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Episodic Memory Content (Layer 2) */}
+                    {memoryStats?.episodic_memories && memoryStats.episodic_memories.length > 0 && (
+                      <div className="sidebar-section">
+                        <h4>Episodic Memories</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {memoryStats.episodic_memories.map((ep) => (
+                            <div key={ep.episode_id} className="episodic-card">
+                              <div className="episodic-header">
+                                <span className="episodic-range">Turns {ep.turn_range[0]}-{ep.turn_range[1]}</span>
+                                <span className={`episodic-trend episodic-trend-${ep.emotion_trend}`}>
+                                  {ep.emotion_trend === 'improving' ? '↑' : ep.emotion_trend === 'declining' ? '↓' : '→'} {ep.emotion_trend}
+                                </span>
+                              </div>
+                              <div className="episodic-summary">{ep.summary}</div>
+                              {ep.key_events.length > 0 && (
+                                <div className="episodic-events">
+                                  {ep.key_events.map((evt, i) => (
+                                    <span key={i} className="episodic-event-tag">{evt}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Semantic Memory Content (Layer 3) */}
+                    {memoryStats?.semantic_memories && memoryStats.semantic_memories.length > 0 && (
+                      <div className="sidebar-section">
+                        <h4>Semantic Reflections</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {memoryStats.semantic_memories.map((sem) => (
+                            <div key={sem.reflection_id} className="semantic-card">
+                              <div className="semantic-header">
+                                Turns {sem.turn_range[0]}-{sem.turn_range[1]}
+                              </div>
+                              <div className="semantic-reflection">{sem.reflection}</div>
+                              {sem.relationship_insights && (
+                                <div className="semantic-insights">
+                                  <span className="semantic-insights-label">Relationship:</span> {sem.relationship_insights}
+                                </div>
+                              )}
+                              {Object.keys(sem.feature_updates).length > 0 && (
+                                <div className="semantic-features">
+                                  {Object.entries(sem.feature_updates).map(([key, val]) => (
+                                    <div key={key} className="semantic-feature-item">
+                                      <span>{key}</span>
+                                      <span style={{ color: 'var(--accent)' }}>
+                                        {typeof val === 'object' ? val.change : String(val)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 

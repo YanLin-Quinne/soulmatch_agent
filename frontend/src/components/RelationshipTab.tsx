@@ -16,6 +16,8 @@ interface SocialVote {
   rel_status: string;
   confidence: number;
   reasoning: string;
+  key_factors?: string[];
+  demographics?: { age?: number; gender?: string; relationship_status?: string };
 }
 
 interface MilestoneReport {
@@ -303,7 +305,22 @@ export default function RelationshipTab({
                     <span style={{ fontWeight: 600, color: 'var(--text)' }}>{v.agent}</span>
                     <span style={{ color: voteColor, fontWeight: 500 }}>{v.vote} ({Math.round(v.confidence * 100)}%)</span>
                   </div>
+                  {v.demographics && (v.demographics.age || v.demographics.gender) && (
+                    <div style={{ color: 'var(--text-dim)', fontSize: 10, marginBottom: 3 }}>
+                      {[v.demographics.gender, v.demographics.age && `${v.demographics.age}y`, v.demographics.relationship_status].filter(Boolean).join(' · ')}
+                    </div>
+                  )}
                   <div style={{ color: 'var(--text-muted)', lineHeight: 1.4 }}>{v.reasoning}</div>
+                  {v.key_factors && v.key_factors.length > 0 && (
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                      {v.key_factors.map((f, j) => (
+                        <span key={j} style={{
+                          padding: '1px 6px', borderRadius: 8, fontSize: 10,
+                          background: 'var(--accent-dim)', color: 'var(--accent)',
+                        }}>{f}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
