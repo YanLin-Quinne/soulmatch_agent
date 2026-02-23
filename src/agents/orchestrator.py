@@ -388,7 +388,16 @@ class OrchestratorAgent:
             self.ctx.suggested_hints = hints
 
     def _generate_bot_response(self) -> str:
-        return self.current_bot.generate_response(message=self.ctx.user_message, ctx=self.ctx)
+        from src.agents.tools.builtin import set_tool_context, clear_tool_context
+        try:
+            set_tool_context(
+                ctx=self.ctx,
+                memory_manager=self.memory_manager,
+                feature_agent=self.feature_agent,
+            )
+            return self.current_bot.generate_response(message=self.ctx.user_message, ctx=self.ctx)
+        finally:
+            clear_tool_context()
 
     def _update_memory(self) -> Dict[str, Any]:
         recent = self.ctx.recent_history(5)
