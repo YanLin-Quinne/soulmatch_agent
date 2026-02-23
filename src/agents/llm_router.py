@@ -8,6 +8,7 @@ the next one in the fallback chain.
 
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
@@ -364,6 +365,9 @@ class LLMRouter:
         )
     """
 
+    # Shared thread pool for timeout enforcement on sync LLM calls
+    _executor = ThreadPoolExecutor(max_workers=8)
+
     def __init__(self):
         self.usage = UsageRecord()
         self._available_cache: dict[Provider, bool] = {}
@@ -385,6 +389,7 @@ class LLMRouter:
         max_tokens: int = 300,
         preferred_model: Optional[str] = None,
         json_mode: bool = False,
+        timeout: float = 30.0,
     ) -> str:
         """
         Send a chat request with automatic fallback.
@@ -437,7 +442,12 @@ class LLMRouter:
 
             try:
                 t0 = time.time()
-                text, in_tok, out_tok = self._dispatch(spec, system, messages, temperature, max_tokens)
+                future = self._executor.submit(self._dispatch, spec, system, messages, temperature, max_tokens)
+                try:
+                    text, in_tok, out_tok = future.result(timeout=timeout)
+                except FuturesTimeoutError:
+                    future.cancel()
+                    raise TimeoutError(f"{model_key} timed out after {timeout}s")
                 elapsed = time.time() - t0
 
                 cost = (in_tok / 1000) * spec.input_cost_per_1k + (out_tok / 1000) * spec.output_cost_per_1k

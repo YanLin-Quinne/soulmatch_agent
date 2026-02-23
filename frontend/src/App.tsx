@@ -158,6 +158,9 @@ function App() {
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isUnmountedRef = useRef(false);
   const selectedCharRef = useRef<Character | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const MAX_RECONNECT_ATTEMPTS = 10;
+  const BASE_RECONNECT_DELAY = 2000; // 2s base, doubles each attempt, max 30s
 
   // Theme effect
   useEffect(() => {
@@ -174,6 +177,7 @@ function App() {
 
     websocket.onopen = () => {
       setIsConnected(true);
+      reconnectAttemptRef.current = 0; // Reset on successful connect
       // Reconnect: re-send start if user was in a chat
       if (selectedCharRef.current) {
         websocket.send(JSON.stringify({ action: 'start', bot_id: selectedCharRef.current.id }));
@@ -289,10 +293,12 @@ function App() {
         clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = null;
       }
-      if (!isUnmountedRef.current) {
+      if (!isUnmountedRef.current && reconnectAttemptRef.current < MAX_RECONNECT_ATTEMPTS) {
+        const delay = Math.min(BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttemptRef.current), 30000);
+        reconnectAttemptRef.current += 1;
         reconnectTimerRef.current = setTimeout(() => {
           connectWebSocket();
-        }, 2000);
+        }, delay);
       }
     };
     setWs(websocket);
@@ -414,6 +420,15 @@ function App() {
             </div>
           </div>
         </div>
+
+        {!isConnected && (
+          <div className="connection-banner">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+            {reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS
+              ? 'Connection lost. Please refresh the page.'
+              : `Reconnecting... (attempt ${reconnectAttemptRef.current}/${MAX_RECONNECT_ATTEMPTS})`}
+          </div>
+        )}
 
         {warning && (
           <div className={`warning-bar warning-${warning.level}`}>

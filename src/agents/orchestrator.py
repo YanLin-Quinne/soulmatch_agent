@@ -155,7 +155,7 @@ class OrchestratorAgent:
 
         # --- Phase 1: parallel independent analyses ---
         try:
-            self._run_parallel_analyses(message, actions)
+            await self._run_parallel_analyses(message, actions)
         except Exception as e:
             logger.error(f"[Orchestrator] Parallel analyses failed: {e}")
 
@@ -229,12 +229,9 @@ class OrchestratorAgent:
                 self.memory_manager.add_conversation_turn("bot", bot_text)
                 self.state_machine.handle_bot_message()
 
-                # Conversational pacing: simulate human typing delay
+                # Conversational pacing: minimal delay for demo responsiveness
                 char_count = len(bot_text)
-                base_delay = min(char_count * 0.02, 3.0)  # ~20ms per char, cap 3s
-                state = self.state_machine.context.current_state
-                if state == "GREETING":
-                    base_delay = max(base_delay, 1.5)  # Greeting feels deliberate
+                base_delay = min(char_count * 0.005, 0.5)  # ~5ms per char, cap 0.5s
                 self.ctx.reply_delay_seconds = round(base_delay, 1)
                 response["reply_delay"] = self.ctx.reply_delay_seconds
             except Exception as e:
@@ -341,11 +338,13 @@ class OrchestratorAgent:
     # Pipeline helpers
     # ------------------------------------------------------------------
 
-    def _run_parallel_analyses(self, message: str, actions: list):
-        """Run emotion, scam, and memory retrieval (could be parallelized with asyncio)."""
-        # Emotion
-        if "emotion_analysis" in actions:
-            emo = self.emotion_agent.analyze_message(message)
+    async def _run_parallel_analyses(self, message: str, actions: list):
+        """Run emotion, scam, and memory retrieval in parallel via asyncio."""
+
+        async def _emotion():
+            if "emotion_analysis" not in actions:
+                return
+            emo = await asyncio.to_thread(self.emotion_agent.analyze_message, message)
             if emo.get("current_emotion"):
                 ce = emo["current_emotion"]
                 self.ctx.current_emotion = ce["emotion"]
@@ -358,18 +357,21 @@ class OrchestratorAgent:
                 strategy = emo["reply_strategy"]
                 self.ctx.reply_strategy = strategy.get("approach", "")
 
-        # Scam
-        if "scam_check" in actions:
-            scam = self.scam_agent.analyze_message(message)
+        async def _scam():
+            if "scam_check" not in actions:
+                return
+            scam = await asyncio.to_thread(self.scam_agent.analyze_message, message)
             self.ctx.scam_risk_score = scam.get("risk_score", 0.0)
             self.ctx.scam_warning_level = scam.get("warning_level", "none")
             self.ctx.scam_warning_message = str(scam.get("message", {}).get("en", ""))
             if scam["warning_level"] in ("high", "critical"):
                 self.state_machine.handle_scam_detected(scam["warning_level"])
 
-        # Memory retrieval (inject into context for persona)
-        memories = self.memory_manager.retrieve_relevant_memories(message)
-        self.ctx.retrieved_memories = memories
+        async def _memory():
+            memories = await asyncio.to_thread(self.memory_manager.retrieve_relevant_memories, message)
+            self.ctx.retrieved_memories = memories
+
+        await asyncio.gather(_emotion(), _scam(), _memory(), return_exceptions=True)
 
     def _update_features(self) -> Dict[str, Any]:
         result = self.feature_agent.predict_from_conversation(self.ctx.conversation_history)

@@ -1,5 +1,6 @@
 """FastAPI main application - SoulMatch backend API"""
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -117,10 +118,24 @@ async def lifespan(app: FastAPI):
             logger.warning("API will start but conversations cannot be started")
     
     logger.info("✅ SoulMatch API started successfully")
-    
+
+    # Start background session cleanup task (every 30 minutes)
+    async def _periodic_session_cleanup():
+        while True:
+            await asyncio.sleep(1800)  # 30 minutes
+            try:
+                count = session_manager.cleanup_inactive_sessions(timeout_seconds=3600)
+                if count > 0:
+                    logger.info(f"Periodic cleanup: removed {count} stale sessions")
+            except Exception as e:
+                logger.error(f"Session cleanup error: {e}")
+
+    cleanup_task = asyncio.create_task(_periodic_session_cleanup())
+
     yield
-    
+
     # Shutdown
+    cleanup_task.cancel()
     logger.info("Shutting down SoulMatch API...")
     
     # Clean up all sessions
