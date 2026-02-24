@@ -26,6 +26,8 @@ A multi-agent orchestration system with **12 collaborative agents**, **Bayesian 
 
 ![Architecture Overview](docs/architecture_overview.jpg)
 
+![SoulMatch Framework — Multi-Agent + Bayesian + Conformal Prediction](docs/soulmatch_framework.png)
+
 Each user message triggers a 5-phase DAG pipeline — not a simple sequential chain, but a directed acyclic graph with data dependencies:
 
 ```
