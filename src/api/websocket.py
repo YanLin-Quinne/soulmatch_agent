@@ -75,6 +75,11 @@ async def _run_background_prediction(user_id: str):
                 "type": "milestone_report",
                 "data": result["milestone_report"]
             })
+        if result.get("love_prediction"):
+            await manager.send_message(user_id, {
+                "type": "love_prediction",
+                "data": result["love_prediction"]
+            })
     except Exception as e:
         logger.error(f"Background relationship prediction failed for {user_id}: {e}")
 
@@ -149,7 +154,20 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 continue
             
             # Handle different actions
-            if action == "start":
+            if action == "typing":
+                # Broadcast typing indicator (for future multi-user)
+                is_typing = message.get("is_typing", False)
+                # Store in orchestrator context if available
+                orchestrator = session_manager.get_session(user_id)
+                if orchestrator:
+                    orchestrator.ctx.peer_typing = is_typing
+                # Echo back as typing_indicator for UI consistency
+                await manager.send_message(user_id, {
+                    "type": "typing_indicator",
+                    "data": {"user_id": user_id, "is_typing": is_typing}
+                })
+
+            elif action == "start":
                 # Start a new conversation
                 bot_id = message.get("bot_id")  # Optional: if provided, use specific bot
                 result = await chat_handler.handle_start_conversation(user_id, bot_id=bot_id)
@@ -177,6 +195,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             elif action == "message":
                 # Process user message
                 content = message.get("content", "").strip()
+                quote_id = message.get("quote_id")
+                quote_text = message.get("quote_text")
 
                 if not content:
                     await manager.send_message(user_id, {
@@ -184,6 +204,11 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         "message": "Message content cannot be empty"
                     })
                     continue
+
+                # Store quote context in orchestrator
+                orchestrator = session_manager.get_session(user_id)
+                if orchestrator and quote_text:
+                    orchestrator.ctx.quoted_message = {"id": quote_id, "content": quote_text}
 
                 # Start heartbeat to keep connection alive during processing
                 heartbeat_task = asyncio.create_task(_send_heartbeat(user_id))
@@ -200,11 +225,18 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
 
                     # Send bot response
                     if "bot_message" in result:
-                        await manager.send_message(user_id, {
+                        bot_msg_payload = {
                             "type": "bot_message",
                             "message": result["bot_message"],
                             "turn": result.get("turn")
-                        })
+                        }
+                        # Attach quote context if user quoted a message
+                        if quote_text:
+                            bot_msg_payload["quoted"] = {"id": quote_id, "content": quote_text}
+                        await manager.send_message(user_id, bot_msg_payload)
+                        # Clear quote after use
+                        if orchestrator:
+                            orchestrator.ctx.quoted_message = None
 
                     # Send emotion analysis if available
                     if "emotion" in result:
@@ -231,6 +263,34 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         await manager.send_message(user_id, {
                             "type": "feature_update",
                             "data": result["feature_update"]
+                        })
+
+                    # Send conversation sentiment
+                    if "conversation_sentiment" in result:
+                        await manager.send_message(user_id, {
+                            "type": "conversation_sentiment",
+                            "data": result["conversation_sentiment"]
+                        })
+
+                    # Send threshold reached notification
+                    if "threshold_reached" in result:
+                        await manager.send_message(user_id, {
+                            "type": "threshold_reached",
+                            "data": result["threshold_reached"]
+                        })
+
+                    # Send conversation hints
+                    if "conversation_hints" in result:
+                        await manager.send_message(user_id, {
+                            "type": "conversation_hints",
+                            "data": result["conversation_hints"]
+                        })
+
+                    # Send digital twin auto-created notification
+                    if "digital_twin_created" in result:
+                        await manager.send_message(user_id, {
+                            "type": "digital_twin_created",
+                            "data": result["digital_twin_created"]
                         })
 
                     # Send context
@@ -303,6 +363,84 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         "message": result.get("error", "Failed to get features")
                     })
             
+            elif action == "create_twin":
+                # Create digital twin from current predicted features
+                orchestrator = session_manager.get_session(user_id)
+                if orchestrator:
+                    try:
+                        twin_profile = orchestrator.digital_twin_agent.create_twin(orchestrator.ctx)
+                        await manager.send_message(user_id, {
+                            "type": "digital_twin_created",
+                            "data": twin_profile
+                        })
+                    except Exception as e:
+                        logger.error(f"Digital twin creation failed for {user_id}: {e}")
+                        await manager.send_message(user_id, {
+                            "type": "error",
+                            "message": f"Failed to create digital twin: {str(e)}"
+                        })
+                else:
+                    await manager.send_message(user_id, {
+                        "type": "error",
+                        "message": "No active session for twin creation"
+                    })
+
+            elif action == "twin_message":
+                # Chat with the digital twin
+                content = message.get("content", "").strip()
+                orchestrator = session_manager.get_session(user_id)
+                if orchestrator and orchestrator.ctx.digital_twin:
+                    try:
+                        # Echo user message back
+                        await manager.send_message(user_id, {
+                            "type": "twin_message",
+                            "data": {"sender": "user", "content": content}
+                        })
+                        # Generate twin response
+                        twin_reply = await orchestrator.digital_twin_agent.chat_with_twin(
+                            orchestrator.ctx.digital_twin, content
+                        )
+                        await manager.send_message(user_id, {
+                            "type": "twin_message",
+                            "data": {"sender": "twin", "content": twin_reply}
+                        })
+                    except Exception as e:
+                        logger.error(f"Twin chat failed for {user_id}: {e}")
+                        await manager.send_message(user_id, {
+                            "type": "error",
+                            "message": f"Twin chat error: {str(e)}"
+                        })
+                else:
+                    await manager.send_message(user_id, {
+                        "type": "error",
+                        "message": "No digital twin exists yet. Create one first."
+                    })
+
+            elif action == "compare_perception":
+                # Compare user's self-perception with predicted features
+                perception = message.get("perception", {})
+                orchestrator = session_manager.get_session(user_id)
+                if orchestrator:
+                    try:
+                        comparison = orchestrator.digital_twin_agent.compare_perception(
+                            orchestrator.ctx, perception
+                        )
+                        await manager.send_message(user_id, {
+                            "type": "perception_comparison",
+                            "data": comparison
+                        })
+                    except Exception as e:
+                        logger.error(f"Perception comparison failed for {user_id}: {e}")
+                        await manager.send_message(user_id, {
+                            "type": "error",
+                            "message": f"Perception comparison error: {str(e)}"
+                        })
+                else:
+                    await manager.send_message(user_id, {
+                        "type": "error",
+                        "message": "No active session for perception comparison"
+                    })
+
             else:
                 await manager.send_message(user_id, {
                     "type": "error",

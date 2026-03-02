@@ -59,9 +59,13 @@ class RelationshipPredictionAgent:
         4. 共形预测
         5. t+1预测
         """
-        # 触发条件: 每5轮 + 第10/30轮
-        if ctx.turn_count % 5 != 0 and ctx.turn_count not in [10, 30]:
-            return {}
+        # 触发条件: 30轮前每5轮+第10/30轮; 30轮后每3轮
+        if ctx.turn_count >= 30:
+            if ctx.turn_count % 3 != 0:
+                return {}
+        else:
+            if ctx.turn_count % 5 != 0 and ctx.turn_count not in [10, 30]:
+                return {}
 
         logger.info(f"[RelationshipPredictionAgent] Turn {ctx.turn_count}: 开始关系预测")
 

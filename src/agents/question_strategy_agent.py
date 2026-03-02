@@ -82,3 +82,76 @@ class QuestionStrategyAgent:
         except Exception as e:
             logger.error(f"Question strategy failed: {e}")
             return []
+
+    def suggest_accuracy_boosting_probes(
+        self,
+        feature_confidences: Dict[str, float],
+        conversation_history: List[dict],
+        threshold: float = 0.6,
+        max_probes: int = 3,
+    ) -> List[Dict[str, str]]:
+        """Suggest probes that target the features with lowest confidence to boost prediction accuracy.
+
+        Unlike suggest_hints which targets explicitly low-confidence features,
+        this method analyses the full confidence distribution and focuses on
+        features just below the threshold that would benefit most from one
+        more data point.
+        """
+        # Rank features by confidence ascending, pick those below threshold
+        candidates = sorted(
+            [(k, v) for k, v in feature_confidences.items() if v < threshold],
+            key=lambda x: x[1],
+        )
+        if not candidates:
+            return []
+
+        target_features = [k for k, _ in candidates[:max_probes * 2]]
+
+        recent = "\n".join(
+            f"{m['speaker']}: {m['message']}" for m in conversation_history[-6:]
+        )
+
+        conf_summary = ", ".join(
+            f"{k}: {v:.0%}" for k, v in candidates[:max_probes * 2]
+        )
+
+        prompt = (
+            f"We need to boost prediction accuracy for a dating-app user.\n\n"
+            f"Recent conversation:\n{recent}\n\n"
+            f"Features with low prediction confidence:\n{conf_summary}\n\n"
+            f"Target features to probe: {', '.join(target_features)}\n\n"
+            f"Suggest {max_probes} conversation strategies that would most efficiently "
+            f"reveal information about multiple low-confidence features at once.\n"
+            f"Each probe should naturally cover 2-3 features if possible.\n"
+            f"Use different approach types: direct_question, hint, self_disclosure, topic_shift.\n\n"
+            f'Respond with JSON: {{"probes":[{{"type":"hint","text":"...","targets":["feature1","feature2"]}}]}}'
+        )
+
+        try:
+            text = router.chat(
+                role=AgentRole.QUESTION,
+                system="You are a conversational strategist optimising for information gain in a dating app.",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=400,
+                json_mode=True,
+            )
+            text = text.strip()
+            # Strip markdown fences
+            if "json" in text and text.count(chr(96) * 3) >= 2:
+                parts = text.split(chr(96) * 3)
+                text = parts[1].lstrip("json").strip() if len(parts) >= 3 else text
+            data = json.loads(text)
+            probes = data.get("probes", [])
+            valid: List[Dict[str, str]] = []
+            for p in probes[:max_probes]:
+                if isinstance(p, dict) and "text" in p:
+                    p.setdefault("type", "direct_question")
+                    p.setdefault("targets", target_features[:2])
+                    valid.append(p)
+                elif isinstance(p, str):
+                    valid.append({"type": "direct_question", "text": p, "targets": target_features[:2]})
+            return valid
+        except Exception as e:
+            logger.error(f"Accuracy boosting probes failed: {e}")
+            return []

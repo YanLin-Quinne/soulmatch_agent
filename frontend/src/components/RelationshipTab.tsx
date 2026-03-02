@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import LoveDetailPanel from './LoveDetailPanel';
 
 interface RelationshipData {
   rel_status: string;
@@ -39,6 +40,7 @@ interface RelationshipTabProps {
   milestoneReport: MilestoneReport | null;
   trustHistory: TrustHistory[];
   turnCount: number;
+  loveDetail?: any;
 }
 
 const STATUS_ORDER = ['stranger', 'acquaintance', 'crush', 'dating', 'committed'];
@@ -193,6 +195,7 @@ export default function RelationshipTab({
   milestoneReport,
   trustHistory,
   turnCount,
+  loveDetail,
 }: RelationshipTabProps) {
   const [showMilestone, setShowMilestone] = useState(false);
 
@@ -265,6 +268,14 @@ export default function RelationshipTab({
         <div style={sectionLabel}>Can Advance? (Conformal @ 90%)</div>
         <AdvancePredictionBadge predictionSet={advance_prediction_set ?? []} />
       </div>
+
+      {/* Love Detail Panel */}
+      {loveDetail && (
+        <div>
+          <div style={sectionLabel}>Love Analysis</div>
+          <LoveDetailPanel loveDetail={loveDetail} />
+        </div>
+      )}
 
       {/* Trust Trajectory */}
       <div>

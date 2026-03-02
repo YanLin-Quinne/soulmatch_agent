@@ -21,6 +21,10 @@ from src.data.schema import PersonaProfile
 from src.agents.relationship_prediction_agent import RelationshipPredictionAgent
 from src.agents.feature_transition_predictor import FeatureTransitionPredictor
 from src.agents.milestone_evaluator import MilestoneEvaluator
+from src.agents.conversation_sentiment_agent import ConversationSentimentAgent
+from src.agents.conversation_hint_agent import ConversationHintAgent
+from src.agents.digital_twin_agent import DigitalTwinAgent
+from src.agents.love_prediction_agent import LovePredictionAgent
 
 
 class OrchestratorAgent:
@@ -57,6 +61,10 @@ class OrchestratorAgent:
         self.relationship_agent = RelationshipPredictionAgent(router)
         self.feature_transition_predictor = FeatureTransitionPredictor()
         self.milestone_evaluator = MilestoneEvaluator()
+        self.conversation_sentiment_agent = ConversationSentimentAgent()
+        self.conversation_hint_agent = ConversationHintAgent()
+        self.digital_twin_agent = DigitalTwinAgent()
+        self.love_prediction_agent = LovePredictionAgent()
 
         register_builtin_skills()
 
@@ -187,9 +195,19 @@ class OrchestratorAgent:
                     logger.error(f"[Orchestrator] Feature transition prediction failed: {e}")
 
         # --- Phase 2.5: Relationship prediction (deferred to background) ---
-        self._pending_relationship_turn = (
-            self.ctx.turn_count % 5 == 0 or self.ctx.turn_count in [10, 30]
-        )
+        if self.ctx.turn_count >= 30:
+            self._pending_relationship_turn = (self.ctx.turn_count % 3 == 0)
+        else:
+            self._pending_relationship_turn = (
+                self.ctx.turn_count % 5 == 0 or self.ctx.turn_count in [10, 30]
+            )
+
+        # Notify frontend when 30-turn threshold is reached
+        if self.ctx.turn_count == 30:
+            response["threshold_reached"] = {
+                "turn": 30,
+                "message": "30-turn threshold reached! Relationship predictions are now more frequent.",
+            }
 
         # --- Phase 3: question strategy (needs features) ---
         try:
@@ -219,6 +237,34 @@ class OrchestratorAgent:
                 }
         except Exception as e:
             logger.error(f"[Orchestrator] Discussion engine failed: {e}")
+
+        # --- Phase 4.5: conversation-level sentiment (rule-based, every turn) ---
+        try:
+            sentiment_result = self.conversation_sentiment_agent.analyze_conversation(self.ctx)
+            if sentiment_result and sentiment_result["label"] != "neutral":
+                response["conversation_sentiment"] = sentiment_result
+        except Exception as e:
+            logger.error(f"[Orchestrator] Conversation sentiment failed: {e}")
+
+        # --- Phase 4.6: conversation hints (detect stuck conversations) ---
+        try:
+            if self.conversation_hint_agent.should_suggest(self.ctx):
+                hints = self.conversation_hint_agent.generate_hints(self.ctx)
+                if hints:
+                    response["conversation_hints"] = hints
+                    self.ctx.conversation_hints = hints
+                    self.ctx.hints_active = True
+        except Exception as e:
+            logger.error(f"[Orchestrator] Conversation hint generation failed: {e}")
+
+        # --- Phase 4.7: digital twin auto-creation at turn 15 ---
+        if self.ctx.turn_count >= 15 and not self.ctx.digital_twin_created:
+            try:
+                twin_profile = self.digital_twin_agent.create_twin(self.ctx)
+                response["digital_twin_created"] = twin_profile
+                logger.info(f"[Orchestrator] Digital twin auto-created at turn {self.ctx.turn_count}")
+            except Exception as e:
+                logger.error(f"[Orchestrator] Digital twin creation failed: {e}")
 
         # --- Phase 4: bot response (needs everything) ---
         if "bot_response" in actions:
@@ -275,6 +321,7 @@ class OrchestratorAgent:
             "risk_level": self.state_machine.context.current_risk_level,
             "user_emotion": self.ctx.current_emotion,
             "avg_feature_confidence": self.feature_agent._compute_overall_confidence(),
+            "perception_accuracy": self.feature_agent.compute_perception_accuracy().get("overall_accuracy", 0.0),
         }
         return response
 
@@ -316,6 +363,15 @@ class OrchestratorAgent:
                 self.ctx.extended_features["sentiment_label"] = rel_result.get("sentiment")
         except Exception as e:
             logger.error(f"[Orchestrator] Relationship prediction failed at turn {self.ctx.turn_count}: {e}")
+
+        # Love prediction: run if rel_type is 'love'
+        if self.ctx.rel_type == "love":
+            try:
+                love_result = await self.love_prediction_agent.predict(self.ctx)
+                if love_result:
+                    result["love_prediction"] = love_result
+            except Exception as e:
+                logger.error(f"[Orchestrator] Love prediction failed at turn {self.ctx.turn_count}: {e}")
 
         if self.ctx.turn_count in [10, 30]:
             try:
@@ -374,10 +430,17 @@ class OrchestratorAgent:
         await asyncio.gather(_emotion(), _scam(), _memory(), return_exceptions=True)
 
     def _update_features(self) -> Dict[str, Any]:
-        result = self.feature_agent.predict_from_conversation(self.ctx.conversation_history)
+        post_threshold = self.ctx.turn_count > 10
+        result = self.feature_agent.predict_from_conversation(
+            self.ctx.conversation_history, post_threshold=post_threshold
+        )
         self.ctx.predicted_features = result.get("features", {})
         self.ctx.feature_confidences = result.get("confidences", {})
         self.ctx.low_confidence_features = result.get("low_confidence", [])
+
+        # Perception accuracy tracking
+        accuracy = self.feature_agent.compute_perception_accuracy()
+        result["perception_accuracy"] = accuracy
         return result
 
     def _update_question_strategy(self):
@@ -395,7 +458,12 @@ class OrchestratorAgent:
                 memory_manager=self.memory_manager,
                 feature_agent=self.feature_agent,
             )
-            return self.current_bot.generate_response(message=self.ctx.user_message, ctx=self.ctx)
+            # Inject quote context if user is replying to a specific message
+            message = self.ctx.user_message
+            if self.ctx.quoted_message:
+                q = self.ctx.quoted_message
+                message = '[Replying to: "' + q['content'] + '"]\n' + message
+            return self.current_bot.generate_response(message=message, ctx=self.ctx)
         finally:
             clear_tool_context()
 

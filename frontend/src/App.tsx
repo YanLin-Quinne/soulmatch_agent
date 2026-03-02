@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import RelationshipTab from './components/RelationshipTab';
+import SentimentBanner from './components/SentimentBanner';
+import ConversationHints from './components/ConversationHints';
+import DigitalTwinPanel from './components/DigitalTwinPanel';
 
 const WS_BASE = window.location.protocol === 'https:'
   ? `wss://${window.location.host}`
@@ -47,6 +50,7 @@ interface Message {
   sender: 'user' | 'bot' | 'system';
   content: string;
   timestamp: Date;
+  quotedMessage?: { id: string; content: string };
 }
 
 interface EmotionState {
@@ -112,6 +116,8 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [peerTyping, setPeerTyping] = useState(false);
+  const [quotedMessage, setQuotedMessage] = useState<{ id: string; content: string } | null>(null);
 
   const [emotion, setEmotion] = useState<EmotionState | null>(null);
   const [warning, setWarning] = useState<WarningState | null>(null);
@@ -121,7 +127,7 @@ function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('soulmate-theme') as 'dark' | 'light') || 'dark';
   });
-  const [activeTab, setActiveTab] = useState<'predict' | 'emotion' | 'safety' | 'memory' | 'relationship'>('predict');
+  const [activeTab, setActiveTab] = useState<'predict' | 'emotion' | 'safety' | 'memory' | 'relationship' | 'twin'>('predict');
 
   // New data states for sidebar
   const [featureData, setFeatureData] = useState<FeatureData | null>(null);
@@ -143,6 +149,15 @@ function App() {
   } | null>(null);
   const [milestoneReport, setMilestoneReport] = useState<any>(null);
   const [trustHistory, setTrustHistory] = useState<{ turn: number; trust: number }[]>([]);
+
+  // EMNLP demo: conversation sentiment
+  const [conversationSentiment, setConversationSentiment] = useState<{
+    label: string; score: number; trend: string; hints: string[];
+  } | null>(null);
+  const [conversationHints, setConversationHints] = useState<{text: string, type: string}[] | null>(null);
+  const [loveDetail, setLoveDetail] = useState<any>(null);
+  const [twinData, setTwinData] = useState<any>(null);
+  const [twinMessages, setTwinMessages] = useState<{sender: string, content: string}[]>([]);
   const [memoryStats, setMemoryStats] = useState<{
     current_turn: number;
     working_memory_size: number;
@@ -152,6 +167,8 @@ function App() {
     episodic_memories?: { episode_id: string; turn_range: number[]; summary: string; key_events: string[]; emotion_trend: string }[];
     semantic_memories?: { reflection_id: string; turn_range: number[]; reflection: string; feature_updates: Record<string, any>; relationship_insights: string }[];
   } | null>(null);
+
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -199,6 +216,11 @@ function App() {
         case 'heartbeat':
         case 'pong':
           break;
+        case 'typing_indicator':
+          if (data.data) {
+            setPeerTyping(data.data.is_typing);
+          }
+          break;
         case 'conversation_started':
           setIsTyping(false);
           if (data.data) {
@@ -222,7 +244,11 @@ function App() {
         case 'bot_message':
           setIsTyping(false);
           if (data.message) {
-            setMessages(prev => [...prev, { id: `bot-${Date.now()}`, sender: 'bot', content: data.message, timestamp: new Date() }]);
+            const botMsg: Message = { id: `bot-${Date.now()}`, sender: 'bot', content: data.message, timestamp: new Date() };
+            if (data.quoted) {
+              botMsg.quotedMessage = { id: data.quoted.id, content: data.quoted.content };
+            }
+            setMessages(prev => [...prev, botMsg]);
           }
           if (data.turn) setTurnCount(data.turn);
           // Capture memory updates if present
@@ -274,9 +300,57 @@ function App() {
             if (data.data.turn_count) setTurnCount(data.data.turn_count);
           }
           break;
+        case 'conversation_sentiment':
+          if (data.data) {
+            setConversationSentiment(data.data);
+          }
+          break;
+        case 'conversation_hints':
+          if (data.data) {
+            setConversationHints(data.data);
+          }
+          break;
+        case 'threshold_reached':
+          if (data.data) {
+            setMessages(prev => [...prev, {
+              id: `sys-threshold-${Date.now()}`,
+              sender: 'system',
+              content: data.data.message || '30-turn threshold reached! Predictions are now more frequent.',
+              timestamp: new Date(),
+            }]);
+            setActiveTab('relationship');
+          }
+          break;
         case 'memory_stats':
           if (data.data) {
             setMemoryStats(data.data);
+          }
+          break;
+        case 'love_prediction':
+          if (data.data) {
+            setLoveDetail(data.data);
+          }
+          break;
+        case 'digital_twin_created':
+          if (data.data) {
+            setTwinData(data.data);
+            setActiveTab('twin');
+          }
+          break;
+        case 'twin_message':
+          if (data.data) {
+            setTwinMessages(prev => [...prev, data.data]);
+          }
+          break;
+        case 'perception_comparison':
+          if (data.data) {
+            const rate = Math.round((data.data.overall_match_rate || 0) * 100);
+            setMessages(prev => [...prev, {
+              id: `sys-perception-${Date.now()}`,
+              sender: 'system',
+              content: `Perception comparison: ${rate}% match (${data.data.matched}/${data.data.total} dimensions within tolerance).`,
+              timestamp: new Date(),
+            }]);
           }
           break;
         case 'error':
@@ -325,6 +399,8 @@ function App() {
     setWarning(null);
     setTurnCount(0);
     setIsTyping(true);
+    setQuotedMessage(null);
+    setPeerTyping(false);
     // Reset new states
     setFeatureData(null);
     setEmotionHistory([]);
@@ -332,6 +408,10 @@ function App() {
     setMemories([]);
     setContextData(null);
     setActiveTab('predict');
+    setConversationHints(null);
+    setTwinData(null);
+    setTwinMessages([]);
+    setLoveDetail(null);
     setCurrentBot({
       profile_id: char.id, age: char.age, sex: null, location: char.city,
       communication_style: 'casual', core_values: [], interests: char.interests,
@@ -345,10 +425,20 @@ function App() {
   const handleSend = () => {
     if (!inputText.trim() || !ws || ws.readyState !== WebSocket.OPEN) return;
     const content = inputText.trim();
-    setMessages(prev => [...prev, { id: `user-${Date.now()}`, sender: 'user', content, timestamp: new Date() }]);
+    setMessages(prev => [...prev, {
+      id: `user-${Date.now()}`, sender: 'user', content, timestamp: new Date(),
+      quotedMessage: quotedMessage ?? undefined,
+    }]);
     setInputText('');
     setIsTyping(true);
-    ws.send(JSON.stringify({ action: 'message', content }));
+    setConversationHints(null);
+    const payload: any = { action: 'message', content };
+    if (quotedMessage) {
+      payload.quote_id = quotedMessage.id;
+      payload.quote_text = quotedMessage.content;
+    }
+    ws.send(JSON.stringify(payload));
+    setQuotedMessage(null);
   };
 
   const handleBack = () => {
@@ -361,6 +451,8 @@ function App() {
     setWarning(null);
     setTurnCount(0);
     setInputText('');
+    setQuotedMessage(null);
+    setPeerTyping(false);
     // Reset new states
     setFeatureData(null);
     setEmotionHistory([]);
@@ -368,6 +460,11 @@ function App() {
     setMemories([]);
     setContextData(null);
     setActiveTab('predict');
+    setConversationSentiment(null);
+    setConversationHints(null);
+    setTwinData(null);
+    setTwinMessages([]);
+    setLoveDetail(null);
   };
 
   const filteredCharacters = CHARACTERS.filter(char => {
@@ -437,6 +534,8 @@ function App() {
           </div>
         )}
 
+        <SentimentBanner sentiment={conversationSentiment} turnCount={turnCount} />
+
         <div className="chat-layout">
           <div className="chat-main">
             <div className="messages">
@@ -451,7 +550,21 @@ function App() {
               )}
               {messages.map(msg => (
                 <div key={msg.id} className={`msg msg-${msg.sender}`}>
-                  <div className="msg-content">{msg.content}</div>
+                  {msg.quotedMessage && (
+                    <div className="msg-quote">
+                      <span className="msg-quote-label">Replying to:</span> {msg.quotedMessage.content.slice(0, 80)}{msg.quotedMessage.content.length > 80 ? '...' : ''}
+                    </div>
+                  )}
+                  <div className="msg-content">
+                    {msg.content}
+                    {msg.sender !== 'system' && (
+                      <button
+                        className="msg-quote-btn"
+                        title="Quote this message"
+                        onClick={() => setQuotedMessage({ id: msg.id, content: msg.content })}
+                      >↩</button>
+                    )}
+                  </div>
                 </div>
               ))}
               {isTyping && (
@@ -464,10 +577,32 @@ function App() {
               <div ref={messagesEndRef} />
             </div>
 
+            <ConversationHints
+              hints={conversationHints}
+              onSelectHint={(text) => { setInputText(text); setConversationHints(null); }}
+              onDismiss={() => setConversationHints(null)}
+            />
+
             <div className="input-area">
+              {quotedMessage && (
+                <div className="quote-preview">
+                  <span>Replying to: {quotedMessage.content.slice(0, 60)}{quotedMessage.content.length > 60 ? '...' : ''}</span>
+                  <button onClick={() => setQuotedMessage(null)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>&times;</button>
+                </div>
+              )}
               <input
                 value={inputText}
-                onChange={e => setInputText(e.target.value)}
+                onChange={e => {
+                  setInputText(e.target.value);
+                  // Typing indicator debounce
+                  if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ action: 'typing', is_typing: true }));
+                    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+                    typingTimerRef.current = setTimeout(() => {
+                      ws.send(JSON.stringify({ action: 'typing', is_typing: false }));
+                    }, 2000);
+                  }
+                }}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 placeholder="Type something..."
                 disabled={!isConnected}
@@ -527,6 +662,17 @@ function App() {
                   </svg>
                   Relation
                   {milestoneReport && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#a855f7' }} />}
+                </button>
+                <button
+                  className={`sidebar-tab ${activeTab === 'twin' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('twin')}
+                  style={{ position: 'relative' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  Twin
+                  {twinData && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: '#06b6d4' }} />}
                 </button>
               </div>
 
@@ -905,6 +1051,30 @@ function App() {
                     milestoneReport={milestoneReport}
                     trustHistory={trustHistory}
                     turnCount={turnCount}
+                    loveDetail={loveDetail}
+                  />
+                )}
+
+                {activeTab === 'twin' && (
+                  <DigitalTwinPanel
+                    twinData={twinData}
+                    twinMessages={twinMessages}
+                    turnCount={turnCount}
+                    onCreateTwin={() => {
+                      if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ action: 'create_twin' }));
+                      }
+                    }}
+                    onSendTwinMessage={(msg) => {
+                      if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ action: 'twin_message', content: msg }));
+                      }
+                    }}
+                    onComparePerception={(perception) => {
+                      if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ action: 'compare_perception', perception }));
+                      }
+                    }}
                   />
                 )}
               </div>

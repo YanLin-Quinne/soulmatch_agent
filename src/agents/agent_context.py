@@ -87,6 +87,36 @@ class AgentContext:
     virtual_room: str = "lobby"
     virtual_position: tuple[float, float] = (0.0, 0.0)
 
+    # --- Conversation sentiment (written by ConversationSentimentAgent) ---
+    conversation_sentiment: str = "neutral"  # positive/neutral/negative
+    conversation_sentiment_score: float = 0.0  # -1.0 to 1.0
+    conversation_sentiment_trend: str = "stable"  # improving/stable/declining
+    conversation_sentiment_hints: list[str] = field(default_factory=list)
+
+    # --- Conversation hints (written by ConversationHintAgent) ---
+    conversation_hints: list[dict] = field(default_factory=list)  # [{text, type}]
+    hints_active: bool = False
+
+    # --- Digital twin (written by DigitalTwinAgent) ---
+    digital_twin: Optional[dict] = None  # twin profile data
+    digital_twin_created: bool = False
+    twin_messages: list[dict] = field(default_factory=list)
+
+    # --- Love prediction (written by LovePredictionAgent) ---
+    love_prediction: Optional[dict] = None  # stage, compatibility, blockers, etc.
+
+    # --- 30-turn threshold ---
+    post_threshold: bool = False  # True after 30 turns
+
+    # --- Typing & quoting ---
+    peer_typing: bool = False
+    quoted_message: Optional[dict] = None  # {id, content}
+
+    # --- Perception accuracy ---
+    perception_accuracy: float = 0.0
+    dimensions_resolved: int = 0
+    total_dimensions: int = 22
+
     # --- Anti-AI mechanism ---
     reply_delay_seconds: float = 0.0
 
@@ -177,6 +207,15 @@ class AgentContext:
         if not self.skill_prompt_additions:
             return ""
         return "\n\n".join(self.skill_prompt_additions)
+
+    def conversation_sentiment_block(self) -> str:
+        """Format conversation-level sentiment for prompt injection."""
+        if self.conversation_sentiment == "neutral" and self.conversation_sentiment_score == 0.0:
+            return ""
+        parts = [f"[Conversation mood] {self.conversation_sentiment} (score: {self.conversation_sentiment_score:.2f}, trend: {self.conversation_sentiment_trend})"]
+        if self.conversation_sentiment_hints:
+            parts.append(f"[Mood hints] {', '.join(self.conversation_sentiment_hints[:3])}")
+        return "\n".join(parts)
 
     def relationship_context_block(self) -> str:
         """Format relationship state for PersonaAgent injection."""

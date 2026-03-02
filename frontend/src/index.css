@@ -1422,3 +1422,573 @@ svg defs {
   color: var(--text-dim);
   padding: 2px 0;
 }
+
+/* ===== EMNLP Demo: Quote Messages ===== */
+
+.msg-quote {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(100, 116, 139, 0.12);
+  border-left: 2px solid var(--accent);
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  max-width: 72%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msg-quote-label {
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+.msg-quote-btn {
+  display: none;
+  position: absolute;
+  top: 4px;
+  right: -28px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 24px;
+  text-align: center;
+}
+
+.msg:hover .msg-quote-btn {
+  display: block;
+}
+
+.msg-quote-btn:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.msg .msg-content {
+  position: relative;
+}
+
+.quote-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-bottom: 4px;
+  background: rgba(0, 229, 160, 0.06);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  width: 100%;
+}
+
+/* ===== EMNLP Demo: Sentiment Banner ===== */
+
+.sentiment-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.3s, color 0.3s;
+}
+
+.sentiment-banner.positive {
+  background: rgba(74, 222, 128, 0.08);
+  color: #4ade80;
+  border-bottom-color: rgba(74, 222, 128, 0.2);
+}
+
+.sentiment-banner.neutral {
+  background: rgba(250, 204, 21, 0.06);
+  color: #facc15;
+  border-bottom-color: rgba(250, 204, 21, 0.15);
+}
+
+.sentiment-banner.negative {
+  background: rgba(248, 113, 113, 0.08);
+  color: #f87171;
+  border-bottom-color: rgba(248, 113, 113, 0.2);
+}
+
+.sentiment-label {
+  font-weight: 600;
+}
+
+.sentiment-score {
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+.sentiment-trend {
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+.sentiment-hint {
+  flex: 1;
+  text-align: right;
+  font-style: italic;
+  opacity: 0.8;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== EMNLP Demo: Conversation Hints ===== */
+
+.hints-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.hints-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.hint-chip {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.hint-chip:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.hints-dismiss {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.hints-dismiss:hover {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+/* ===== EMNLP Demo: Digital Twin ===== */
+
+.twin-profile-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.twin-profile-card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 8px;
+}
+
+.twin-profile-card .twin-trait {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.twin-profile-card .twin-trait:last-child {
+  border-bottom: none;
+}
+
+.twin-profile-card .twin-trait .trait-value {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.twin-chat-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.twin-chat-area .twin-msg {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  max-width: 85%;
+  line-height: 1.4;
+}
+
+.twin-chat-area .twin-msg.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+}
+
+.twin-chat-area .twin-msg.twin {
+  align-self: flex-start;
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.twin-chat-area .twin-input {
+  display: flex;
+  gap: 6px;
+}
+
+.twin-chat-area .twin-input input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+
+.twin-chat-area .twin-input input:focus {
+  border-color: var(--accent);
+}
+
+.twin-chat-area .twin-input button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.perception-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.perception-slider .slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.perception-slider .slider-label {
+  width: 100px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.perception-slider input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+
+.perception-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.perception-slider .slider-value {
+  width: 36px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.comparison-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.comparison-row:last-child {
+  border-bottom: none;
+}
+
+.comparison-row .dim-name {
+  width: 90px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.comparison-row .predicted {
+  flex: 1;
+  text-align: center;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.comparison-row .user-input {
+  flex: 1;
+  text-align: center;
+  color: #c084fc;
+  font-weight: 600;
+}
+
+.comparison-row .match-badge {
+  width: 20px;
+  text-align: center;
+}
+
+/* ===== EMNLP Demo: Love Detail Panel ===== */
+
+.love-stages {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.love-stages::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 5%;
+  right: 5%;
+  height: 2px;
+  background: var(--border);
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+.love-stage-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.love-stage-dot .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--border);
+  border: 2px solid var(--bg-hover);
+  transition: all 0.3s;
+}
+
+.love-stage-dot.active .dot {
+  background: var(--accent);
+  border-color: var(--accent-glow);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.love-stage-dot.passed .dot {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.love-stage-dot .label {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.love-stage-dot.active .label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.love-compat-bar {
+  margin-bottom: 8px;
+}
+
+.love-compat-bar .compat-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  text-transform: capitalize;
+}
+
+.love-compat-bar .compat-track {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.love-compat-bar .compat-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.love-compat-bar .compat-fill.emotional {
+  background: linear-gradient(90deg, #f472b6, #ec4899);
+}
+
+.love-compat-bar .compat-fill.intellectual {
+  background: linear-gradient(90deg, #818cf8, #6366f1);
+}
+
+.love-compat-bar .compat-fill.lifestyle {
+  background: linear-gradient(90deg, #34d399, #10b981);
+}
+
+.love-compat-bar .compat-fill.values {
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+}
+
+.love-advice {
+  padding: 10px 12px;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.love-advice::before {
+  content: '\1F4A1';
+  margin-right: 6px;
+}
+
+/* ===== EMNLP Demo: Accuracy Gauge ===== */
+
+.accuracy-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.accuracy-ring {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.accuracy-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.accuracy-ring .ring-bg {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 6;
+}
+
+.accuracy-ring .ring-fill {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.8s ease, stroke 0.3s;
+}
+
+.accuracy-ring .ring-fill.green {
+  stroke: #4ade80;
+  filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.4));
+}
+
+.accuracy-ring .ring-fill.amber {
+  stroke: #fbbf24;
+}
+
+.accuracy-ring .ring-fill.red {
+  stroke: #f87171;
+}
+
+.accuracy-ring .ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.accuracy-ring .ring-pct {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.accuracy-ring .ring-label {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.accuracy-dims {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* ===== EMNLP Demo: Threshold Banner ===== */
+
+.threshold-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #c084fc;
+  background: rgba(147, 51, 234, 0.08);
+  border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+  animation: pulse-banner 2s ease-in-out 3;
+}

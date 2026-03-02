@@ -53,8 +53,14 @@ class FeaturePredictionAgent:
             logger.warning(f"Failed to load conformal calibrator: {e}")
             self.conformal = None
 
-    def predict_from_conversation(self, conversation_history: List[dict]) -> Dict[str, any]:
-        """Extract and update features from conversation history."""
+    def predict_from_conversation(self, conversation_history: List[dict], post_threshold: bool = False) -> Dict[str, any]:
+        """Extract and update features from conversation history.
+
+        Args:
+            conversation_history: list of {speaker, message} dicts.
+            post_threshold: if True, allow periodic LLM refinement even after
+                convergence (every 3rd turn) to keep predictions fresh.
+        """
         self.conversation_count += 1
 
         # Check convergence — skip LLM if all features are high-confidence
@@ -62,8 +68,11 @@ class FeaturePredictionAgent:
         if avg_conf >= CONVERGENCE_THRESHOLD and self.conversation_count > 5:
             low = self._low_confidence_features()
             if not low:
-                logger.info(f"Features converged (avg conf={avg_conf:.2f}), skipping LLM extraction")
-                return self._result()
+                if post_threshold and self.conversation_count % 3 == 0:
+                    logger.info(f"Post-threshold refinement at turn {self.conversation_count} (avg conf={avg_conf:.2f})")
+                else:
+                    logger.info(f"Features converged (avg conf={avg_conf:.2f}), skipping LLM extraction")
+                    return self._result()
 
         new_obs = self._extract_features_llm(conversation_history)
         if not new_obs:
@@ -345,6 +354,81 @@ Guidelines:
         if not self.feature_confidences:
             return 0.0
         return sum(self.feature_confidences.values()) / len(self.feature_confidences)
+
+    def compute_perception_accuracy(self, ground_truth: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Compute perception accuracy metrics.
+
+        If *ground_truth* is provided (e.g. from a user profile), accuracy is
+        calculated as the proportion of features whose predicted value matches
+        or is within a tolerance of the true value.  Otherwise a proxy accuracy
+        is derived from model confidence and prediction stability.
+
+        Returns:
+            A dict with overall_accuracy (0-1), per_feature scores, and
+            metadata useful for the frontend AccuracyGauge.
+        """
+        if not self.predicted_features:
+            return {"overall_accuracy": 0.0, "n_features": 0, "per_feature": {}, "method": "none"}
+
+        per_feature: Dict[str, float] = {}
+
+        if ground_truth:
+            # --- Ground-truth comparison ---
+            total, correct = 0, 0.0
+            for key, true_val in ground_truth.items():
+                pred_val = self.predicted_features.get(key)
+                if pred_val is None:
+                    continue
+                total += 1
+                if isinstance(true_val, (int, float)) and isinstance(pred_val, (int, float)):
+                    # Continuous: accuracy = 1 - |error| clamped to [0, 1]
+                    error = abs(pred_val - true_val)
+                    score = max(0.0, 1.0 - error)
+                    per_feature[key] = round(score, 3)
+                    correct += score
+                else:
+                    # Categorical: exact match
+                    match = 1.0 if str(pred_val).lower() == str(true_val).lower() else 0.0
+                    per_feature[key] = match
+                    correct += match
+            overall = round(correct / total, 3) if total > 0 else 0.0
+            return {
+                "overall_accuracy": overall,
+                "n_features": total,
+                "per_feature": per_feature,
+                "method": "ground_truth",
+            }
+
+        # --- Proxy accuracy: weighted confidence + stability heuristic ---
+        high_conf_count = 0
+        conf_sum = 0.0
+        for key, val in self.predicted_features.items():
+            conf = self.feature_confidences.get(key, 0.0)
+            per_feature[key] = round(conf, 3)
+            conf_sum += conf
+            if conf >= 0.7:
+                high_conf_count += 1
+
+        n = len(self.predicted_features)
+        avg_conf = conf_sum / n if n else 0.0
+
+        # Stability bonus: if conformal calibrator narrows prediction sets
+        stability_bonus = 0.0
+        if self.last_conformal_result and self.last_conformal_result.n_dimensions > 0:
+            singleton_ratio = (
+                self.last_conformal_result.n_singleton / self.last_conformal_result.n_dimensions
+            )
+            stability_bonus = singleton_ratio * 0.1  # up to 10% bonus
+
+        overall = round(min(1.0, avg_conf + stability_bonus), 3)
+        return {
+            "overall_accuracy": overall,
+            "n_features": n,
+            "high_confidence_count": high_conf_count,
+            "per_feature": per_feature,
+            "stability_bonus": round(stability_bonus, 3),
+            "method": "proxy",
+        }
 
     def get_feature_summary(self) -> Dict[str, any]:
         summary = {"demographics": {}, "personality": {}, "lifestyle": {}, "interests": {},
