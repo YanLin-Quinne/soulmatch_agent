@@ -1,6 +1,7 @@
 """FastAPI main application - SoulMatch backend API"""
 
 import asyncio
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -54,6 +55,28 @@ class UserSummaryResponse(BaseModel):
     user_id: str
     summary: dict | None = None
     error: str | None = None
+
+
+class ProfilingStartRequest(BaseModel):
+    """Start profiling mode session"""
+    persona_id: int = Field(..., description="Persona ID (0-14)")
+
+
+class ProfilingMessageRequest(BaseModel):
+    """Send message in profiling mode"""
+    session_id: str
+    message: str
+
+
+class PlaygroundStartRequest(BaseModel):
+    """Start playground mode game"""
+    user_id: str
+
+
+class PlaygroundGuessRequest(BaseModel):
+    """Submit guess in playground mode"""
+    session_id: str
+    guess_persona_id: int
 
 
 class HealthResponse(BaseModel):
@@ -492,3 +515,155 @@ async def check_personas_file():
         "processed_dir_exists": (settings.data_dir / "processed").exists(),
         "files_in_processed": list((settings.data_dir / "processed").iterdir()) if (settings.data_dir / "processed").exists() else []
     }
+
+
+# ============================================
+# Profiling Mode Endpoints
+# ============================================
+
+@app.post("/api/profiling/start", tags=["Profiling"])
+async def start_profiling_session(request: ProfilingStartRequest):
+    """Start a profiling mode session (30-turn inference)"""
+    try:
+        user_id = f"profiling_{request.persona_id}_{int(time.time())}"
+        session_id = session_manager.create_session(user_id=user_id, bot_id=str(request.persona_id))
+        return {"success": True, "session_id": session_id, "persona_id": request.persona_id}
+    except Exception as e:
+        logger.error(f"Error starting profiling session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/profiling/message", tags=["Profiling"])
+async def send_profiling_message(request: ProfilingMessageRequest):
+    """Send message and get inference update"""
+    try:
+        orchestrator = session_manager.get_session(request.session_id)
+        if not orchestrator:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        result = await orchestrator.process_user_message(request.message)
+
+        return {
+            "success": True,
+            "bot_message": result.get("bot_message"),
+            "turn": result.get("turn"),
+            "inferred_traits": orchestrator.ctx.predicted_features,
+            "confidence": orchestrator.feature_agent._compute_overall_confidence()
+        }
+    except Exception as e:
+        logger.error(f"Error processing profiling message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/profiling/inference/{session_id}", tags=["Profiling"])
+async def get_inference_result(session_id: str):
+    """Get current inference result"""
+    try:
+        orchestrator = session_manager.get_session(session_id)
+        if not orchestrator:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        return {
+            "success": True,
+            "inferred_traits": orchestrator.ctx.predicted_features,
+            "confidence": orchestrator.feature_agent._compute_overall_confidence(),
+            "turn_count": orchestrator.ctx.turn_count
+        }
+    except Exception as e:
+        logger.error(f"Error getting inference: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Playground Mode Endpoints
+# ============================================
+
+@app.post("/api/playground/start", tags=["Playground"])
+async def start_playground_game(request: PlaygroundStartRequest):
+    """Start a playground mode game (10-turn guessing)"""
+    try:
+        import random
+        target_persona = random.randint(0, 14)
+        session_id = session_manager.create_session(user_id=request.user_id, bot_id=str(target_persona))
+
+        return {
+            "success": True,
+            "session_id": session_id,
+            "message": "Guess which persona I am in 10 messages!"
+        }
+    except Exception as e:
+        logger.error(f"Error starting playground game: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/playground/guess", tags=["Playground"])
+async def submit_playground_guess(request: PlaygroundGuessRequest):
+    """Submit a guess and get score"""
+    try:
+        orchestrator = session_manager.get_session(request.session_id)
+        if not orchestrator:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        actual_persona_id = int(orchestrator.preferred_bot_id or 0)
+        correct = (request.guess_persona_id == actual_persona_id)
+
+        return {
+            "success": True,
+            "correct": correct,
+            "actual_persona_id": actual_persona_id,
+            "score": 100 if correct else max(0, 100 - abs(request.guess_persona_id - actual_persona_id) * 10)
+        }
+    except Exception as e:
+        logger.error(f"Error submitting guess: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Visualization Endpoints
+# ============================================
+
+@app.get("/api/pipeline/status/{session_id}", tags=["Visualization"])
+async def get_pipeline_status(session_id: str):
+    """Get agent pipeline status for visualization"""
+    try:
+        orchestrator = session_manager.get_session(session_id)
+        if not orchestrator:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        return {
+            "success": True,
+            "pipeline": {
+                "emotion_agent": {"status": "active", "last_result": orchestrator.ctx.current_emotion},
+                "scam_agent": {"status": "active", "risk_score": orchestrator.ctx.scam_risk_score},
+                "feature_agent": {"status": "active", "confidence": orchestrator.feature_agent._compute_overall_confidence()},
+                "memory_manager": {"status": "active", "stats": orchestrator.memory_manager.get_memory_stats()},
+                "persona_agent": {"status": "active", "bot_id": orchestrator.preferred_bot_id}
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting pipeline status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/logic-tree/{session_id}", tags=["Visualization"])
+async def get_logic_tree(session_id: str):
+    """Get reasoning logic tree"""
+    try:
+        orchestrator = session_manager.get_session(session_id)
+        if not orchestrator:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        return {
+            "success": True,
+            "tree": {
+                "root": "User personality inference",
+                "branches": [
+                    {"node": "Emotion analysis", "confidence": orchestrator.ctx.emotion_confidence},
+                    {"node": "Feature prediction", "confidence": orchestrator.feature_agent._compute_overall_confidence()},
+                    {"node": "Memory retrieval", "count": orchestrator.memory_manager.get_memory_stats().get("total_memories", 0)}
+                ]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting logic tree: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

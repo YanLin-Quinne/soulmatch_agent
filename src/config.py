@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
 
     # Multi-Agent Discussion
-    enable_discussion_room: bool = False  # 启用真正的多智能体辩论（研究模式）
+    enable_discussion_room: bool = True  # 启用真正的多智能体辩论（研究模式）
     discussion_trigger_turns: str = "10,20,30"  # 触发讨论的轮次
 
     # Memory Aggregation

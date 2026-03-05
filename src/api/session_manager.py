@@ -1,12 +1,78 @@
 """Session Manager - Manages user sessions and Orchestrator instances"""
 
 import time
+import json
+import sqlite3
+from pathlib import Path
 from typing import Dict, Optional
 from threading import Lock
 from loguru import logger
 
 from src.agents.orchestrator import OrchestratorAgent
 from src.agents.persona_agent import PersonaAgentPool
+
+
+class SessionStore:
+    """SQLite-based persistent session storage"""
+
+    def __init__(self, db_path: str = "./data/sessions.db"):
+        self.db_path = Path(db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._init_db()
+
+    def _init_db(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                user_id TEXT,
+                persona_id TEXT,
+                messages TEXT,
+                inferred_traits TEXT,
+                created_at REAL,
+                updated_at REAL
+            )
+        """)
+        conn.commit()
+        conn.close()
+
+    def save_session(self, session_id: str, user_id: str, persona_id: str,
+                     messages: list, inferred_traits: dict):
+        conn = sqlite3.connect(self.db_path)
+        now = time.time()
+        conn.execute("""
+            INSERT OR REPLACE INTO sessions
+            (session_id, user_id, persona_id, messages, inferred_traits, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM sessions WHERE session_id = ?), ?), ?)
+        """, (session_id, user_id, persona_id, json.dumps(messages),
+              json.dumps(inferred_traits), session_id, now, now))
+        conn.commit()
+        conn.close()
+
+    def load_session(self, session_id: str) -> Optional[dict]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.execute(
+            "SELECT user_id, persona_id, messages, inferred_traits, created_at, updated_at FROM sessions WHERE session_id = ?",
+            (session_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return {
+                "user_id": row[0],
+                "persona_id": row[1],
+                "messages": json.loads(row[2]),
+                "inferred_traits": json.loads(row[3]),
+                "created_at": row[4],
+                "updated_at": row[5]
+            }
+        return None
+
+    def delete_session(self, session_id: str):
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+        conn.commit()
+        conn.close()
 
 
 class SessionManager:
@@ -32,13 +98,14 @@ class SessionManager:
         """Initialize session manager (only once)"""
         if self._initialized:
             return
-            
+
         self.sessions: Dict[str, OrchestratorAgent] = {}
         self.session_metadata: Dict[str, dict] = {}  # user_id -> {session_id, created_at, last_active}
         self.bot_personas_pool: Optional[PersonaAgentPool] = None
+        self.store = SessionStore()
         self._initialized = True
-        
-        logger.info("SessionManager initialized")
+
+        logger.info("SessionManager initialized with SQLite persistence")
     
     def set_bot_personas_pool(self, pool: PersonaAgentPool):
         """
