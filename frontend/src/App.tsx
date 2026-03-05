@@ -1101,8 +1101,10 @@ function App() {
       <DigitalTwinSetup
         onStartChat={(guess) => {
           setFriendGuess(guess);
+          // 随机选择一个角色开始聊天
+          const randomChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
+          setSelectedChar(randomChar);
           setPage('twin-chat');
-          // TODO: 启动与 AI 分身的聊天
         }}
       />
     );
