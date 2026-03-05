@@ -16,7 +16,6 @@ chromadb>=0.4.22
 
 # SQL Database (持久化层)
 sqlalchemy>=2.0.0
-psycopg2-binary>=2.9.0  # PostgreSQL adapter
 
 # Data Processing
 pandas>=2.2.0
