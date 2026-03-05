@@ -18,10 +18,10 @@ export default function HomeScreen({ onSelectPersona, onEnterDigitalTwin }: Home
           <div key={p.id} className="persona-card" onClick={() => onSelectPersona(p)}>
             <img className="persona-avatar" src={`https://api.dicebear.com/9.x/notionists/svg?seed=${p.name}`} alt={p.name} />
             <div className="persona-name">{p.name}</div>
-            <div className="persona-hint">{p.profile.occupation} · {p.profile.location}</div>
+            <div className="persona-hint">{p.occupation} · {p.age}</div>
             <div className="persona-tags">
-              <span className="persona-tag age">{p.profile.age}</span>
-              {p.isBot && <span className="persona-tag bot">🤖 AI</span>}
+              <span className="persona-tag age">{p.age}</span>
+              {p.isAI && <span className="persona-tag bot">🤖 AI</span>}
             </div>
           </div>
         ))}
