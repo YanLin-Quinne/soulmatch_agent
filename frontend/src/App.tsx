@@ -3,6 +3,10 @@ import RelationshipTab from './components/RelationshipTab';
 import SentimentBanner from './components/SentimentBanner';
 import ConversationHints from './components/ConversationHints';
 import DigitalTwinPanel from './components/DigitalTwinPanel';
+import HomeScreen from './components/HomeScreen';
+import DigitalTwinSetup from './components/DigitalTwinSetup';
+import ComparisonView from './components/ComparisonView';
+import { PERSONAS, Persona } from './data/personas';
 
 const WS_BASE = window.location.protocol === 'https:'
   ? `wss://${window.location.host}`
@@ -20,16 +24,17 @@ interface Character {
   bio: string;
 }
 
-const CHARACTERS: Character[] = [
-  { id: 'bot_0', name: 'Mina', avatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Mina', job: 'Policy Analyst', city: 'San Francisco', age: 29, status: 'Away', interests: ['Food', 'Travel', 'Books'], bio: 'Exploring the world one policy at a time' },
-  { id: 'bot_1', name: 'Jade', avatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Jade', job: 'Office Admin', city: 'San Francisco', age: 25, status: 'Online', interests: ['Music', 'Food', 'Arts'], bio: 'Finding beauty in the everyday rhythm' },
-  { id: 'bot_2', name: 'Sierra', avatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Sierra', job: 'Math Teacher', city: 'Oakland', age: 34, status: 'Away', interests: ['Travel', 'Outdoors', 'Music'], bio: 'Numbers by day, mountains by weekend' },
-  { id: 'bot_3', name: 'Kevin', avatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Kevin', job: 'Software Dev', city: 'San Francisco', age: 33, status: 'Online', interests: ['Music', 'Tech', 'Outdoors'], bio: 'Building things that matter' },
-  { id: 'bot_4', name: 'Marcus', avatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Marcus', job: 'VP Operations', city: 'Castro Valley', age: 33, status: 'Online', interests: ['Music', 'Food', 'Sports'], bio: 'Leading teams, chasing sunsets' },
-  { id: 'bot_5', name: 'Derek', avatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Derek', job: 'Financial Analyst', city: 'Oakland', age: 39, status: 'Busy', interests: ['Food', 'Outdoors', 'Sports'], bio: 'Balancing spreadsheets and trail runs' },
-  { id: 'bot_6', name: 'Luna', avatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Luna', job: 'Freelancer', city: 'Hayward', age: 26, status: 'Online', interests: ['Food', 'Travel', 'Music'], bio: 'Creating on my own terms' },
-  { id: 'bot_7', name: 'Travis', avatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Travis', job: 'Sales Director', city: 'San Francisco', age: 42, status: 'Away', interests: ['Travel', 'Food', 'Outdoors'], bio: 'Closing deals, opening horizons' },
-];
+const CHARACTERS: Character[] = PERSONAS.map(p => ({
+  id: `bot_${p.id}`,
+  name: p.name,
+  avatar: `https://api.dicebear.com/9.x/notionists/svg?seed=${p.name}`,
+  job: p.profile.occupation,
+  city: p.profile.location,
+  age: p.profile.age,
+  status: 'Online' as const,
+  interests: p.tags,
+  bio: `${p.profile.occupation} · ${p.profile.mbti || ''}`
+}));
 
 const AGE_FILTERS = ['All', '20s', '30s', '40+'] as const;
 
@@ -108,9 +113,10 @@ function App() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
-  const [page, setPage] = useState<'select' | 'chat'>('select');
+  const [page, setPage] = useState<'home' | 'chat' | 'twin-setup' | 'twin-chat' | 'comparison'>('home');
   const [selectedChar, setSelectedChar] = useState<Character | null>(null);
-  const [ageFilter, setAgeFilter] = useState<string>('All');
+  const [friendGuess, setFriendGuess] = useState<any>(null);
+  const [systemInference, setSystemInference] = useState<any>(null);
 
   const [, setCurrentBot] = useState<BotInfo | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -442,7 +448,7 @@ function App() {
   };
 
   const handleBack = () => {
-    setPage('select');
+    setPage('home');
     setSelectedChar(null);
     selectedCharRef.current = null;
     setCurrentBot(null);
@@ -453,7 +459,6 @@ function App() {
     setInputText('');
     setQuotedMessage(null);
     setPeerTyping(false);
-    // Reset new states
     setFeatureData(null);
     setEmotionHistory([]);
     setScamData(null);
@@ -465,15 +470,9 @@ function App() {
     setTwinData(null);
     setTwinMessages([]);
     setLoveDetail(null);
+    setFriendGuess(null);
+    setSystemInference(null);
   };
-
-  const filteredCharacters = CHARACTERS.filter(char => {
-    if (ageFilter === 'All') return true;
-    if (ageFilter === '20s') return char.age >= 20 && char.age <= 29;
-    if (ageFilter === '30s') return char.age >= 30 && char.age <= 39;
-    if (ageFilter === '40+') return char.age >= 40;
-    return true;
-  });
 
   const progress = Math.min(turnCount / 30, 1);
 
@@ -1085,55 +1084,135 @@ function App() {
     );
   }
 
-  return (
-    <div className="select-page">
-      <header className="hero">
-        <div className="hero-badge">AI-Powered Matching</div>
-        <h1>SoulMatch</h1>
-        <p>
-          Pick someone to chat with. After 30 exchanges, our AI predicts personality traits,
-          emotional patterns, and social tendencies. Some profiles are AI bots — can you tell?
-        </p>
-      </header>
+  if (page === 'home') {
+    return (
+      <HomeScreen
+        onSelectPersona={(persona) => {
+          const char = CHARACTERS.find(c => c.id === `bot_${persona.id}`);
+          if (char) handleCardClick(char);
+        }}
+        onEnterDigitalTwin={() => setPage('twin-setup')}
+      />
+    );
+  }
 
-      <div className="filters">
-        {AGE_FILTERS.map(f => (
-          <button key={f} className={`filter-btn ${ageFilter === f ? 'active' : ''}`} onClick={() => setAgeFilter(f)}>
-            {f}
+  if (page === 'twin-setup') {
+    return (
+      <DigitalTwinSetup
+        onStartChat={(guess) => {
+          setFriendGuess(guess);
+          setPage('twin-chat');
+          // TODO: 启动与 AI 分身的聊天
+        }}
+      />
+    );
+  }
+
+  if (page === 'twin-chat') {
+    // AI 分身聊天：复用现有聊天界面，20句后跳转对比
+    const twinProgress = Math.min(turnCount / 20, 1);
+
+    // 20句后自动跳转到对比页面
+    useEffect(() => {
+      if (turnCount >= 20 && friendGuess && page === 'twin-chat') {
+        setSystemInference({
+          gender: featureData?.features?.sex || 'Unknown',
+          age_range: featureData?.features?.age || 'Unknown',
+          occupation_guess: featureData?.features?.occupation || 'Unknown',
+          mbti: featureData?.features?.mbti || 'Unknown',
+          bigFive: {
+            E: featureData?.features?.big_five_extraversion || 0.5,
+            A: featureData?.features?.big_five_agreeableness || 0.5
+          },
+          communication_style: featureData?.features?.communication_style || 'Unknown'
+        });
+        setPage('comparison');
+      }
+    }, [turnCount, friendGuess, page, featureData]);
+
+    return (
+      <div className="chat-page">
+        <div className="chat-header">
+          <button className="back-btn" onClick={handleBack}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           </button>
-        ))}
-      </div>
-
-      <div className="grid">
-        {filteredCharacters.map((char, i) => (
-          <div key={char.id} className="card" onClick={() => handleCardClick(char)} style={{ animationDelay: `${i * 60}ms` }}>
-            <div className="card-top">
-              <img className="card-avatar" src={char.avatar} alt={char.name} />
-              <span className={`status-dot status-${char.status.toLowerCase()}`} />
-            </div>
-            <h3 className="card-name">{char.name}, {char.age}</h3>
-            <p className="card-role">{char.job}</p>
-            <p className="card-location">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              {char.city}
-            </p>
-            <p className="card-bio">{char.bio}</p>
-            <div className="card-interests">
-              {char.interests.map(tag => <span key={tag} className="interest-tag">{tag}</span>)}
+          <div className="chat-user-info">
+            <div className="chat-user-name">AI Digital Twin</div>
+            <div className="chat-user-detail">Chat 20 turns to compare</div>
+          </div>
+          <div className="chat-header-right">
+            <div className="progress-ring" title={`${turnCount}/20 turns`}>
+              <svg viewBox="0 0 36 36">
+                <path className="progress-bg" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path className="progress-fill" strokeDasharray={`${twinProgress * 100}, 100`} d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <span className="progress-text">{turnCount}</span>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
 
-      <footer className="bottom-note">
-        <span>8 profiles</span>
-        <span className="dot" />
-        <span>Some are AI</span>
-        <span className="dot" />
-        <span>30 turns to predict</span>
-      </footer>
-    </div>
-  );
+        {!isConnected && (
+          <div className="connection-banner">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+            {reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS
+              ? 'Connection lost. Please refresh the page.'
+              : `Reconnecting... (attempt ${reconnectAttemptRef.current}/${MAX_RECONNECT_ATTEMPTS})`}
+          </div>
+        )}
+
+        <div className="chat-layout">
+          <div className="chat-main">
+            <div className="messages">
+              {messages.length === 0 && !isTyping && (
+                <div className="empty-chat">
+                  <h3>Chat with AI Digital Twin</h3>
+                  <p>Start chatting. After 20 exchanges, we'll compare your friend's guess with system inference.</p>
+                </div>
+              )}
+              {messages.map(msg => (
+                <div key={msg.id} className={`msg msg-${msg.sender}`}>
+                  <div className="msg-content">{msg.content}</div>
+                </div>
+              ))}
+              {isTyping && (
+                <div className="msg msg-bot">
+                  <div className="msg-content typing">
+                    <span /><span /><span />
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className="input-area">
+              <input
+                value={inputText}
+                onChange={e => setInputText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSend()}
+                placeholder="Type something..."
+                disabled={!isConnected}
+              />
+              <button onClick={handleSend} disabled={!isConnected || !inputText.trim()}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (page === 'comparison') {
+    return (
+      <ComparisonView
+        systemInference={systemInference || {}}
+        friendGuess={friendGuess || {}}
+        onRestart={handleBack}
+      />
+    );
+  }
+
+  return null;
 }
 
 export default App;
