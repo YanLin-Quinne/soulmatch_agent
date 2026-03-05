@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     
     # Database
     chroma_db_path: str = "./chroma_db"
+    database_url: str = "sqlite:///./soulmatch.db"  # SQLite (开发) 或 PostgreSQL (生产)
+    database_path: str = "./soulmatch.db"  # SQLite 文件路径
+    sql_echo: bool = False  # SQL 日志
     
     # Training Configuration
     model_name: str = "Qwen/Qwen3-0.6B"
@@ -36,6 +39,14 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
+
+    # Multi-Agent Discussion
+    enable_discussion_room: bool = False  # 启用真正的多智能体辩论（研究模式）
+    discussion_trigger_turns: str = "10,20,30"  # 触发讨论的轮次
+
+    # Memory Aggregation
+    memory_aggregation_method: str = "variance_reduction"  # variance_reduction, self_refinement, hybrid
+    aggregation_num_samples: int = 3  # 方差降低采样次数
     
     # Local LLM (vLLM / Ollama / llama.cpp server — OpenAI-compatible endpoint)
     local_llm_base_url: str = ""          # e.g. "http://localhost:8080/v1"
