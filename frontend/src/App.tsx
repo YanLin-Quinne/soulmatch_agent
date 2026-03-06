@@ -1101,8 +1101,12 @@ function App() {
       <DigitalTwinSetup
         onStartChat={(guess) => {
           setFriendGuess(guess);
-          setPage('twin-chat');
-          // TODO: 启动与 AI 分身的聊天
+          const randomChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
+          setSelectedChar(randomChar);
+          setMessages([]);
+          setPage('chat');
+          // 延迟设置为twin-chat以确保WebSocket连接建立
+          setTimeout(() => setPage('twin-chat'), 100);
         }}
       />
     );
