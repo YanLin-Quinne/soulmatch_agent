@@ -28,12 +28,12 @@ const CHARACTERS: Character[] = PERSONAS.map(p => ({
   id: `bot_${p.id}`,
   name: p.name,
   avatar: `https://api.dicebear.com/9.x/notionists/svg?seed=${p.name}`,
-  job: p.profile.occupation,
-  city: p.profile.location,
-  age: p.profile.age,
+  job: p.occupation,
+  city: 'Remote',
+  age: p.age,
   status: 'Online' as const,
-  interests: p.tags,
-  bio: `${p.profile.occupation} · ${p.profile.mbti || ''}`
+  interests: p.interests,
+  bio: p.bio
 }));
 
 const AGE_FILTERS = ['All', '20s', '30s', '40+'] as const;
