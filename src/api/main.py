@@ -49,6 +49,13 @@ class SessionInfoResponse(BaseModel):
     error: str | None = None
 
 
+class UserAggregateResponse(BaseModel):
+    """User aggregate data"""
+    success: bool
+    data: dict | None = None
+    error: str | None = None
+
+
 class UserSummaryResponse(BaseModel):
     """User feature summary"""
     success: bool
@@ -667,3 +674,16 @@ async def get_logic_tree(session_id: str):
     except Exception as e:
         logger.error(f"Error getting logic tree: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/research/aggregate/{user_id}", tags=["Research"])
+async def get_user_aggregate(user_id: str) -> UserAggregateResponse:
+    """获取用户聚合数据"""
+    try:
+        from src.persistence.session_store import SessionStore
+        store = SessionStore()
+        data = store.aggregate_user_sessions(user_id)
+        return UserAggregateResponse(success=True, data=data)
+    except Exception as e:
+        logger.error(f"Error aggregating user data: {e}")
+        return UserAggregateResponse(success=False, error=str(e))

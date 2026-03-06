@@ -79,6 +79,30 @@ class SessionStore:
         finally:
             db.close()
 
+    def aggregate_user_sessions(self, user_id: str) -> Dict[str, Any]:
+        """聚合某用户的所有 session 数据"""
+        db = self.db_manager.get_session()
+        try:
+            sessions = db.query(Session).filter(Session.user_id == user_id).all()
+            if not sessions:
+                return {}
+
+            total_turns = sum(
+                db.query(ConversationTurn).filter(
+                    ConversationTurn.session_id == s.session_id
+                ).count() for s in sessions
+            )
+
+            return {
+                "user_id": user_id,
+                "total_sessions": len(sessions),
+                "total_turns": total_turns,
+                "first_session": min(s.created_at for s in sessions).isoformat(),
+                "last_session": max(s.last_active for s in sessions).isoformat(),
+            }
+        finally:
+            db.close()
+
     def add_conversation_turn(
         self,
         session_id: str,
