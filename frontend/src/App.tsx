@@ -1108,27 +1108,27 @@ function App() {
     );
   }
 
+  // AI Digital Twin: 20句后自动跳转到对比页面
+  useEffect(() => {
+    if (turnCount >= 20 && friendGuess && page === 'twin-chat') {
+      setSystemInference({
+        gender: featureData?.features?.sex || 'Unknown',
+        age_range: featureData?.features?.age || 'Unknown',
+        occupation_guess: featureData?.features?.occupation || 'Unknown',
+        mbti: featureData?.features?.mbti || 'Unknown',
+        bigFive: {
+          E: featureData?.features?.big_five_extraversion || 0.5,
+          A: featureData?.features?.big_five_agreeableness || 0.5
+        },
+        communication_style: featureData?.features?.communication_style || 'Unknown'
+      });
+      setPage('comparison');
+    }
+  }, [turnCount, friendGuess, page]);
+
   if (page === 'twin-chat') {
     // AI 分身聊天：复用现有聊天界面，20句后跳转对比
     const twinProgress = Math.min(turnCount / 20, 1);
-
-    // 20句后自动跳转到对比页面
-    useEffect(() => {
-      if (turnCount >= 20 && friendGuess && page === 'twin-chat') {
-        setSystemInference({
-          gender: featureData?.features?.sex || 'Unknown',
-          age_range: featureData?.features?.age || 'Unknown',
-          occupation_guess: featureData?.features?.occupation || 'Unknown',
-          mbti: featureData?.features?.mbti || 'Unknown',
-          bigFive: {
-            E: featureData?.features?.big_five_extraversion || 0.5,
-            A: featureData?.features?.big_five_agreeableness || 0.5
-          },
-          communication_style: featureData?.features?.communication_style || 'Unknown'
-        });
-        setPage('comparison');
-      }
-    }, [turnCount, friendGuess, page]);
 
     return (
       <div className="chat-page">
