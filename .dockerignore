@@ -1,6 +1,6 @@
 node_modules/
 frontend/node_modules/
-frontend/dist/
+frontend/dist/*.map
 __pycache__/
 *.pyc
 .pytest_cache/
