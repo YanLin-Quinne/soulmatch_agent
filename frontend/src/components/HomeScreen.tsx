@@ -10,7 +10,7 @@ export default function HomeScreen({ onSelectPersona, onEnterDigitalTwin }: Home
     <div className="home-screen">
       <div className="home-header">
         <h1 className="home-title">SoulMatch Agent</h1>
-        <p className="home-subtitle">选择一个人聊天30句，系统将推断你的性格画像</p>
+        <p className="home-subtitle">Chat with a persona for 30 turns, and the system will infer your personality profile</p>
       </div>
 
       <div className="persona-grid">
@@ -30,8 +30,8 @@ export default function HomeScreen({ onSelectPersona, onEnterDigitalTwin }: Home
       <div className="digital-twin-entry" onClick={onEnterDigitalTwin}>
         <div className="twin-entry-icon">🧬</div>
         <div className="twin-entry-content">
-          <h3>AI分身模式</h3>
-          <p>预判朋友性格 → 与AI分身聊天 → 对比准确度</p>
+          <h3>AI Digital Twin Mode</h3>
+          <p>Predict friend's personality → Chat with AI twin → Compare accuracy</p>
         </div>
         <div className="twin-entry-arrow">→</div>
       </div>

@@ -63,9 +63,9 @@ export const ProfilingMode: React.FC<ProfilingModeProps> = ({ persona, onBack })
   return (
     <div className="profiling-mode">
       <div className="header">
-        <button onClick={onBack}>← 返回</button>
-        <h2>画像模式: {persona.name}</h2>
-        <span>轮次: {messages.filter(m => m.role === 'user').length}/30</span>
+        <button onClick={onBack}>← Back</button>
+        <h2>Profiling Mode: {persona.name}</h2>
+        <span>Turn: {messages.filter(m => m.role === 'user').length}/30</span>
       </div>
       
       <div className="content">
@@ -76,21 +76,21 @@ export const ProfilingMode: React.FC<ProfilingModeProps> = ({ persona, onBack })
                 {msg.content}
               </div>
             ))}
-            {loading && <div className="message bot loading">思考中...</div>}
+            {loading && <div className="message bot loading">Thinking...</div>}
           </div>
           <div className="input-area">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder="输入消息..."
+              placeholder="Type a message..."
             />
-            <button onClick={sendMessage} disabled={loading}>发送</button>
+            <button onClick={sendMessage} disabled={loading}>Send</button>
           </div>
         </div>
 
         <div className="inference-panel">
-          <h3>推断结果</h3>
+          <h3>Inference Results</h3>
           {inference && (
             <div className="traits">
               {Object.entries(inference).map(([key, value]: [string, any]) => (

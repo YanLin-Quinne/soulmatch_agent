@@ -10,7 +10,7 @@ import { PERSONAS, Persona } from './data/personas';
 
 const WS_BASE = window.location.protocol === 'https:'
   ? `wss://${window.location.host}`
-  : 'ws://localhost:8000';
+  : 'ws://localhost:7860';
 
 interface Character {
   id: string;
@@ -1105,7 +1105,7 @@ function App() {
           setSelectedChar(randomChar);
           setMessages([]);
           setPage('chat');
-          // 延迟设置为twin-chat以确保WebSocket连接建立
+          // Delay setting to twin-chat to ensure WebSocket connection is established
           setTimeout(() => setPage('twin-chat'), 100);
         }}
       />
@@ -1113,10 +1113,10 @@ function App() {
   }
 
   if (page === 'twin-chat') {
-    // AI 分身聊天：复用现有聊天界面，20句后跳转对比
+    // AI twin chat: reuse existing chat UI, redirect to comparison after 20 turns
     const twinProgress = Math.min(turnCount / 20, 1);
 
-    // 20句后自动跳转到对比页面
+    // Auto-redirect to comparison page after 20 turns
     useEffect(() => {
       if (turnCount >= 20 && friendGuess && page === 'twin-chat') {
         setSystemInference({
@@ -1132,7 +1132,7 @@ function App() {
         });
         setPage('comparison');
       }
-    }, [turnCount, friendGuess, page, featureData]);
+    }, [turnCount, friendGuess, page]);
 
     return (
       <div className="chat-page">
