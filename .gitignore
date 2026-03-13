@@ -17,6 +17,9 @@ htmlcov/
 dist/
 build/
 
+# Exception: HuggingFace Space needs frontend build
+!frontend/dist/
+
 # Data
 data/raw/
 data/processed/*
