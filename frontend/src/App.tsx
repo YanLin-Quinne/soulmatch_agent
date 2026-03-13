@@ -1128,7 +1128,7 @@ function App() {
         });
         setPage('comparison');
       }
-    }, [turnCount, friendGuess, page, featureData]);
+    }, [turnCount, friendGuess, page]);
 
     return (
       <div className="chat-page">
