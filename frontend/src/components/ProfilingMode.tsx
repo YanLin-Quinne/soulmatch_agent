@@ -82,7 +82,7 @@ export const ProfilingMode: React.FC<ProfilingModeProps> = ({ persona, onBack })
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
               placeholder="Type a message..."
             />
             <button onClick={sendMessage} disabled={loading}>Send</button>
