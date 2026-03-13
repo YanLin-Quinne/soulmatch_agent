@@ -12,7 +12,7 @@ import json
 from src.api.session_manager import SessionManager
 from src.agents.persona_agent import PersonaAgentPool
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend/dist', static_url_path='')
 app.secret_key = os.urandom(24)
 CORS(app)
 
@@ -44,7 +44,7 @@ with open("./data/processed/bot_personas.json") as f:
 
 @app.route('/')
 def index():
-    return render_template('index.html', personas=PERSONAS)
+    return app.send_static_file('index.html')
 
 @app.route('/api/start', methods=['POST'])
 def start_chat():
