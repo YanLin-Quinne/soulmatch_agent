@@ -17,7 +17,7 @@ export const ConformalCoverageChart: React.FC<ConformalCoverageProps> = ({
 
   return (
     <div className="conformal-coverage">
-      <h3>{feature} 共形预测</h3>
+      <h3>{feature} Conformal Prediction</h3>
       <div className="prediction-set">
         {predictionSet.map((val, i) => (
           <span
@@ -29,9 +29,9 @@ export const ConformalCoverageChart: React.FC<ConformalCoverageProps> = ({
         ))}
       </div>
       <div className="coverage-info">
-        <div>覆盖保证: {(coverage * 100).toFixed(0)}%</div>
+        <div>Coverage Guarantee: {(coverage * 100).toFixed(0)}%</div>
         <div className={isCorrect ? 'success' : 'failure'}>
-          {isCorrect ? '✓ 真实值在预测集内' : '✗ 真实值不在预测集内'}
+          {isCorrect ? '✓ True value in prediction set' : '✗ True value not in prediction set'}
         </div>
       </div>
     </div>

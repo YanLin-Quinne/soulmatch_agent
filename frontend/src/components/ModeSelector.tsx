@@ -7,33 +7,33 @@ export default function ModeSelector({ onSelectMode }: ModeSelectorProps) {
     <div className="mode-selector-screen">
       <div className="mode-selector-content">
         <h1 className="mode-title">SoulMatch Agent</h1>
-        <p className="mode-subtitle">选择你的体验模式</p>
+        <p className="mode-subtitle">Choose Your Experience Mode</p>
 
         <div className="mode-cards">
           <div className="mode-card" onClick={() => onSelectMode('personality')}>
             <div className="mode-icon">🎭</div>
-            <h3>性格推断模式</h3>
-            <p>选择一个人聊天30句，系统将推断你的性格画像</p>
+            <h3>Personality Inference Mode</h3>
+            <p>Chat with a persona for 30 turns, and the system will infer your personality profile</p>
             <div className="mode-features">
-              <span>✓ 15个角色可选</span>
-              <span>✓ 10个AI + 5个真人</span>
-              <span>✓ Big Five性格分析</span>
+              <span>✓ 15 personas available</span>
+              <span>✓ 10 AI + 5 real humans</span>
+              <span>✓ Big Five personality analysis</span>
             </div>
           </div>
 
           <div className="mode-card" onClick={() => onSelectMode('playground')}>
             <div className="mode-icon">🧬</div>
-            <h3>AI分身模式</h3>
-            <p>先预判朋友的性格，再与TA的AI分身聊天，最后对比准确度</p>
+            <h3>AI Digital Twin Mode</h3>
+            <p>Predict friend's personality, chat with their AI twin, then compare accuracy</p>
             <div className="mode-features">
-              <span>✓ 预判朋友特征</span>
-              <span>✓ 与AI分身对话</span>
-              <span>✓ 匹配度分析</span>
+              <span>✓ Predict friend's traits</span>
+              <span>✓ Chat with AI twin</span>
+              <span>✓ Match accuracy analysis</span>
             </div>
           </div>
         </div>
 
-        <p className="mode-note">💡 两种模式都基于多智能体架构和贝叶斯推理</p>
+        <p className="mode-note">💡 Both modes are based on multi-agent architecture and Bayesian inference</p>
       </div>
     </div>
   );
