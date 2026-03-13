@@ -9,14 +9,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend code and data
 COPY src/ src/
 COPY data/ data/
-COPY app.py .
 
-# Copy Flask templates and frontend build
-COPY templates/ templates/
+# Copy frontend build
 COPY frontend/dist/ frontend/dist/
 
 # Expose port
 EXPOSE 7860
 
-# Start Flask app (serves React frontend)
-CMD ["python", "app.py"]
+# Start FastAPI with uvicorn (WebSocket + static files)
+CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "7860"]
