@@ -1119,8 +1119,15 @@ function App() {
       <DigitalTwinSetup
         onStartChat={(guess) => {
           setFriendGuess(guess);
+          setMessages([]);
+          setTurnCount(0);
+          setFeatureData(null);
           setPage('twin-chat');
-          // TODO: 启动与 AI 分身的聊天
+          // Start conversation with a random bot for AI Digital Twin mode
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            const randomBot = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
+            ws.send(JSON.stringify({ action: 'start', bot_id: randomBot.id }));
+          }
         }}
       />
     );
