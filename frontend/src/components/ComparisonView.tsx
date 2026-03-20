@@ -64,34 +64,34 @@ export default function ComparisonView({
   const matchClass = matchPct >= 70 ? 'high' : matchPct >= 40 ? 'mid' : 'low';
   const matchText =
     matchPct >= 70
-      ? '高度匹配！你很了解TA'
+      ? 'Great match! You know them well'
       : matchPct >= 40
-      ? '部分匹配，有些特征你猜对了'
-      : '差异较大，也许TA有你不知道的一面';
+      ? 'Partial match — you got some traits right'
+      : 'Big differences — they may have a side you didn\'t know';
 
   return (
     <div className="comparison-screen">
       <div className="comparison-content">
-        <h2 className="comparison-title">🔍 画像对比</h2>
-        <p className="comparison-subtitle">你的预判 vs 系统推断</p>
+        <h2 className="comparison-title">🔍 Profile Comparison</h2>
+        <p className="comparison-subtitle">Your Guess vs System Inference</p>
 
         <div className={`match-badge ${matchClass}`}>
-          {matchPct}% 匹配度 — {matchText}
+          {matchPct}% Match — {matchText}
         </div>
 
         <div className="compare-grid">
           <div className="compare-card system">
-            <h3>🤖 系统推断</h3>
+            <h3>🤖 System Inference</h3>
             <div className="trait-row">
-              <span className="trait-label">性别</span>
+              <span className="trait-label">Gender</span>
               <span className="trait-value">{systemInference.gender || '?'}</span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">年龄</span>
+              <span className="trait-label">Age</span>
               <span className="trait-value">{systemInference.age_range || '?'}</span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">职业</span>
+              <span className="trait-label">Occupation</span>
               <span className="trait-value">{systemInference.occupation_guess || '?'}</span>
             </div>
             <div className="trait-row">
@@ -99,66 +99,66 @@ export default function ComparisonView({
               <span className="trait-value">{systemInference.mbti || '?'}</span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">外向性</span>
+              <span className="trait-label">Extraversion</span>
               <span className="trait-value">
                 {Math.round((systemInference.bigFive?.E || 0.5) * 100)}%
               </span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">宜人性</span>
+              <span className="trait-label">Agreeableness</span>
               <span className="trait-value">
                 {Math.round((systemInference.bigFive?.A || 0.5) * 100)}%
               </span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">沟通风格</span>
+              <span className="trait-label">Communication</span>
               <span className="trait-value">{systemInference.communication_style || '?'}</span>
             </div>
           </div>
 
           <div className="compare-card friend">
-            <h3>👤 你的预判</h3>
+            <h3>👤 Your Guess</h3>
             <div className="trait-row">
-              <span className="trait-label">性别</span>
+              <span className="trait-label">Gender</span>
               <span className="trait-value">
                 {friendGuess.gender}{' '}
                 {friendGuess.gender === systemInference.gender ? '✅' : '❌'}
               </span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">年龄</span>
+              <span className="trait-label">Age</span>
               <span className="trait-value">{friendGuess.age_range}</span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">职业</span>
-              <span className="trait-value">{friendGuess.occupation || '未填'}</span>
+              <span className="trait-label">Occupation</span>
+              <span className="trait-value">{friendGuess.occupation || 'N/A'}</span>
             </div>
             <div className="trait-row">
               <span className="trait-label">MBTI</span>
               <span className="trait-value">
-                {friendGuess.mbti || '未填'}{' '}
+                {friendGuess.mbti || 'N/A'}{' '}
                 {friendGuess.mbti === systemInference.mbti ? '✅' : ''}
               </span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">外向程度</span>
+              <span className="trait-label">Extraversion</span>
               <span className="trait-value">{100 - friendGuess.EI}%</span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">感性程度</span>
+              <span className="trait-label">Sensitivity</span>
               <span className="trait-value">{friendGuess.TF}%</span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">你的描述</span>
+              <span className="trait-label">Description</span>
               <span className="trait-value" style={{ fontSize: '11px' }}>
-                {friendGuess.description || '无'}
+                {friendGuess.description || 'None'}
               </span>
             </div>
           </div>
         </div>
 
         <button className="restart-btn" onClick={onRestart}>
-          🔄 返回首页
+          🔄 Back to Home
         </button>
       </div>
     </div>

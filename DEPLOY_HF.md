@@ -92,6 +92,27 @@ git commit -m "Update: description of changes"
 git push hf main
 ```
 
+## Preventing HF Space Sleep (Free Tier)
+
+Free HuggingFace Spaces sleep after 30 minutes of inactivity. Two countermeasures are in place:
+
+### A. Frontend Keep-Alive (built-in)
+The React frontend sends an HTTP GET to `/health` every 5 minutes automatically. No action needed — this is already implemented in `App.tsx`.
+
+### B. External Cron Ping (recommended)
+Set up an external monitor to ping the Space independently:
+
+1. Go to [UptimeRobot](https://uptimerobot.com/) (free tier: 50 monitors, 5-min interval)
+2. Sign up / log in
+3. Click **Add New Monitor**:
+   - **Monitor Type**: HTTP(s)
+   - **Friendly Name**: SoulMatch Agent
+   - **URL**: `https://quinnnnnne-soulmatch-agent.hf.space/health`
+   - **Monitoring Interval**: 5 minutes
+4. Save
+
+Alternative services: [cron-job.org](https://cron-job.org), [Freshping](https://www.freshworks.com/website-monitoring/)
+
 ## Notes
 
 1. **API key security**: Never hardcode keys in source code; use environment variables

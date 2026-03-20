@@ -16,7 +16,7 @@ interface DigitalTwinSetupProps {
 
 export default function DigitalTwinSetup({ onStartChat }: DigitalTwinSetupProps) {
   const [guess, setGuess] = useState<FriendGuess>({
-    gender: '男',
+    gender: 'Male',
     age_range: '25-30',
     mbti: '',
     occupation: '',
@@ -32,29 +32,29 @@ export default function DigitalTwinSetup({ onStartChat }: DigitalTwinSetupProps)
   return (
     <div className="clone-setup-screen">
       <div className="clone-setup-content">
-        <h2 className="clone-title">🧬 与TA的AI分身聊天</h2>
+        <h2 className="clone-title">🧬 Chat with Their AI Digital Twin</h2>
         <p className="clone-subtitle">
-          在和AI分身聊天之前，先填写你认为这个人是什么样的。
+          Before chatting with the AI twin, fill in what you think this person is like.
           <br />
-          聊完后系统会对比你的预判 vs 系统推断，看你有多了解TA。
+          After the chat, the system will compare your guess vs its inference to see how well you know them.
         </p>
 
         <div className="clone-form">
           <div className="form-row">
             <div className="form-group">
-              <label>你觉得TA的性别</label>
+              <label>Their Gender (your guess)</label>
               <select
                 value={guess.gender}
                 onChange={e => setGuess({ ...guess, gender: e.target.value })}
               >
-                <option value="男">男</option>
-                <option value="女">女</option>
-                <option value="非二元">非二元</option>
-                <option value="不确定">不确定</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Non-binary">Non-binary</option>
+                <option value="Unsure">Unsure</option>
               </select>
             </div>
             <div className="form-group">
-              <label>你觉得TA的年龄段</label>
+              <label>Their Age Range (your guess)</label>
               <select
                 value={guess.age_range}
                 onChange={e => setGuess({ ...guess, age_range: e.target.value })}
@@ -71,29 +71,29 @@ export default function DigitalTwinSetup({ onStartChat }: DigitalTwinSetupProps)
 
           <div className="form-row">
             <div className="form-group">
-              <label>你觉得TA的MBTI</label>
+              <label>Their MBTI (your guess)</label>
               <input
                 type="text"
                 value={guess.mbti}
                 onChange={e => setGuess({ ...guess, mbti: e.target.value.toUpperCase() })}
-                placeholder="如 ENFP（不确定可留空）"
+                placeholder="e.g. ENFP (leave blank if unsure)"
                 maxLength={4}
               />
             </div>
             <div className="form-group">
-              <label>你觉得TA的职业</label>
+              <label>Their Occupation (your guess)</label>
               <input
                 type="text"
                 value={guess.occupation}
                 onChange={e => setGuess({ ...guess, occupation: e.target.value })}
-                placeholder="如 程序员、学生..."
+                placeholder="e.g. Engineer, Student..."
               />
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label>外向 ← → 内向</label>
+              <label>Extroverted ← → Introverted</label>
               <input
                 type="range"
                 min="0"
@@ -104,7 +104,7 @@ export default function DigitalTwinSetup({ onStartChat }: DigitalTwinSetupProps)
               <span className="range-value">{guess.EI}%</span>
             </div>
             <div className="form-group">
-              <label>理性 ← → 感性</label>
+              <label>Rational ← → Emotional</label>
               <input
                 type="range"
                 min="0"
@@ -117,21 +117,21 @@ export default function DigitalTwinSetup({ onStartChat }: DigitalTwinSetupProps)
           </div>
 
           <div className="form-group">
-            <label>用几句话描述你觉得TA是什么样的人</label>
+            <label>Describe what you think they are like in a few sentences</label>
             <textarea
               value={guess.description}
               onChange={e => setGuess({ ...guess, description: e.target.value })}
-              placeholder="比如：我觉得TA是一个比较内向但很有想法的人，喜欢深度思考..."
+              placeholder="e.g. I think they are introverted but insightful, enjoys deep thinking..."
               rows={4}
             />
           </div>
 
           <p className="form-note">
-            💡 填完后你将与AI分身聊天20句，最后对比你的预判和系统推断
+            💡 After submitting, you'll chat with the AI twin for 20 turns, then compare your guess with system inference
           </p>
 
           <button className="submit-btn" onClick={handleSubmit}>
-            开始与AI分身聊天 →
+            Start Chatting with AI Twin →
           </button>
         </div>
       </div>

@@ -16,15 +16,15 @@ interface LogicTreeProps {
 export const LogicTreeVisualization: React.FC<LogicTreeProps> = ({ tree, agentName }) => {
   return (
     <div className="logic-tree">
-      <h3>{agentName || 'Agent'} 推理过程</h3>
+      <h3>{agentName || 'Agent'} Reasoning Process</h3>
       <div className="tree-nodes">
         {tree.map((node) => (
           <div key={node.id} className={`tree-node ${node.type}`}>
             <div className="node-content">{node.content}</div>
-            <div className="node-confidence">置信度: {(node.confidence * 100).toFixed(0)}%</div>
+            <div className="node-confidence">Confidence: {(node.confidence * 100).toFixed(0)}%</div>
             {node.evidence.length > 0 && (
               <div className="node-evidence">
-                证据: {node.evidence.join(', ')}
+                Evidence: {node.evidence.join(', ')}
               </div>
             )}
           </div>

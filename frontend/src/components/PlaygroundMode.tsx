@@ -50,9 +50,9 @@ export const PlaygroundMode: React.FC<PlaygroundModeProps> = ({ onBack }) => {
   return (
     <div className="playground-mode">
       <div className="header">
-        <button onClick={onBack}>← 返回</button>
-        <h2>推理模式: 猜猜我是谁</h2>
-        <span>消息: {messages.filter(m => m.role === 'user').length}/10</span>
+        <button onClick={onBack}>← Back</button>
+        <h2>Playground: Guess Who I Am</h2>
+        <span>Messages: {messages.filter(m => m.role === 'user').length}/10</span>
       </div>
 
       <div className="messages">
@@ -69,9 +69,9 @@ export const PlaygroundMode: React.FC<PlaygroundModeProps> = ({ onBack }) => {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="问我问题..."
+              placeholder="Ask me a question..."
             />
-            <button onClick={() => setGuessMode(true)}>提交猜测</button>
+            <button onClick={() => setGuessMode(true)}>Submit Guess</button>
           </div>
 
           {guessMode && (
@@ -89,10 +89,10 @@ export const PlaygroundMode: React.FC<PlaygroundModeProps> = ({ onBack }) => {
 
       {result && (
         <div className="result">
-          <h3>{result.correct ? '🎉 猜对了!' : '❌ 猜错了'}</h3>
-          <p>正确答案: {PERSONAS[result.actual_persona_id].name}</p>
-          <p>得分: {result.score}</p>
-          <button onClick={startGame}>再玩一次</button>
+          <h3>{result.correct ? '🎉 Correct!' : '❌ Wrong'}</h3>
+          <p>Answer: {PERSONAS[result.actual_persona_id].name}</p>
+          <p>Score: {result.score}</p>
+          <button onClick={startGame}>Play Again</button>
         </div>
       )}
     </div>

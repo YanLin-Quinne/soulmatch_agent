@@ -17,7 +17,7 @@ export const BayesianUpdateChart: React.FC<BayesianUpdateChartProps> = ({ featur
 
   return (
     <div className="bayesian-chart">
-      <h3>{feature} 推断收敛过程</h3>
+      <h3>{feature} Inference Convergence</h3>
       <svg width="400" height="200" viewBox="0 0 400 200">
         {updates.map((u, i) => {
           const x = (u.turn / maxTurn) * 380 + 10;
@@ -33,7 +33,7 @@ export const BayesianUpdateChart: React.FC<BayesianUpdateChartProps> = ({ featur
         })}
       </svg>
       <div className="chart-info">
-        最终: μ={updates[updates.length - 1]?.mean.toFixed(2)}, 
+        Final: μ={updates[updates.length - 1]?.mean.toFixed(2)},
         σ²={updates[updates.length - 1]?.variance.toFixed(2)}
       </div>
     </div>

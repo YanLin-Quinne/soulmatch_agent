@@ -21,7 +21,7 @@ interface PersonalityModeProps {
 }
 
 const AGE_FILTERS = [
-  { label: '全部', value: 'all' },
+  { label: 'All', value: 'all' },
   { label: '10-20s', value: 'young' },
   { label: '30-40s', value: 'mid' },
   { label: '50-60s', value: 'senior' },
@@ -45,7 +45,7 @@ export default function PersonalityMode({ personas, onSelectPersona }: Personali
     <div className="personality-mode">
       <div className="hero-section">
         <h1 className="hero-title">SoulMatch Agent</h1>
-        <p className="hero-subtitle">选择一个人开始聊天，30句后系统将推断你的性格画像</p>
+        <p className="hero-subtitle">Choose someone to chat with. After 30 turns, the system will infer your personality profile</p>
       </div>
 
       <div className="filter-bar">
@@ -73,7 +73,7 @@ export default function PersonalityMode({ personas, onSelectPersona }: Personali
               {p.profile.occupation} · {p.profile.location}
             </div>
             <div className="persona-tags">
-              <span className="persona-tag age">{p.profile.age}岁</span>
+              <span className="persona-tag age">{p.profile.age} yrs</span>
               <span className="persona-tag loc">{p.profile.location}</span>
               {p.isBot && <span className="persona-tag bot">🤖 AI</span>}
             </div>
@@ -81,7 +81,7 @@ export default function PersonalityMode({ personas, onSelectPersona }: Personali
         ))}
       </div>
 
-      <p className="home-note">🎭 15人中有10个AI角色，你能分辨吗？</p>
+      <p className="home-note">🎭 10 out of 15 are AI personas — can you tell which?</p>
     </div>
   );
 }

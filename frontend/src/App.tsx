@@ -195,6 +195,14 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // HTTP keep-alive to prevent HuggingFace Spaces from sleeping
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch('/health').catch(() => {});
+    }, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, []);
+
   const connectWebSocket = useCallback(() => {
     const websocket = new WebSocket(`${WS_BASE}/ws/${userId.current}`);
 
@@ -480,7 +488,7 @@ function App() {
     setTheme(t => t === 'dark' ? 'light' : 'dark');
   };
 
-  // AI Digital Twin: 20句后自动跳转到对比页面
+  // AI Digital Twin: Auto-redirect to comparison after 20 turns
   useEffect(() => {
     if (turnCount >= 20 && friendGuess && page === 'twin-chat') {
       setSystemInference({
@@ -1134,7 +1142,7 @@ function App() {
   }
 
   if (page === 'twin-chat') {
-    // AI 分身聊天：复用现有聊天界面，20句后跳转对比
+    // AI Digital Twin chat: reuse existing chat interface, redirect after 20 turns
     const twinProgress = Math.min(turnCount / 20, 1);
 
     return (
