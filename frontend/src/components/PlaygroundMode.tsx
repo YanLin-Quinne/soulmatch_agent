@@ -51,7 +51,7 @@ export const PlaygroundMode: React.FC<PlaygroundModeProps> = ({ onBack }) => {
     <div className="playground-mode">
       <div className="header">
         <button onClick={onBack}>← Back</button>
-        <h2>Inference Mode: Guess Who I Am</h2>
+        <h2>Playground: Guess Who I Am</h2>
         <span>Messages: {messages.filter(m => m.role === 'user').length}/10</span>
       </div>
 
@@ -90,7 +90,7 @@ export const PlaygroundMode: React.FC<PlaygroundModeProps> = ({ onBack }) => {
       {result && (
         <div className="result">
           <h3>{result.correct ? '🎉 Correct!' : '❌ Wrong'}</h3>
-          <p>Correct answer: {PERSONAS[result.actual_persona_id].name}</p>
+          <p>Answer: {PERSONAS[result.actual_persona_id].name}</p>
           <p>Score: {result.score}</p>
           <button onClick={startGame}>Play Again</button>
         </div>

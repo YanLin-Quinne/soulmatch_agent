@@ -48,7 +48,7 @@ export const ProfilingMode: React.FC<ProfilingModeProps> = ({ persona, onBack })
         body: JSON.stringify({ session_id: sessionId, message: input })
       });
       const data = await res.json();
-      
+
       if (data.success) {
         setMessages(prev => [...prev, { role: 'bot', content: data.bot_message }]);
         setInference(data.inferred_traits);
@@ -64,10 +64,10 @@ export const ProfilingMode: React.FC<ProfilingModeProps> = ({ persona, onBack })
     <div className="profiling-mode">
       <div className="header">
         <button onClick={onBack}>← Back</button>
-        <h2>Profiling Mode: {persona.name}</h2>
+        <h2>Profiling: {persona.name}</h2>
         <span>Turn: {messages.filter(m => m.role === 'user').length}/30</span>
       </div>
-      
+
       <div className="content">
         <div className="chat-panel">
           <div className="messages">
@@ -82,7 +82,7 @@ export const ProfilingMode: React.FC<ProfilingModeProps> = ({ persona, onBack })
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               placeholder="Type a message..."
             />
             <button onClick={sendMessage} disabled={loading}>Send</button>

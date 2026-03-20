@@ -31,7 +31,7 @@ export const ConformalCoverageChart: React.FC<ConformalCoverageProps> = ({
       <div className="coverage-info">
         <div>Coverage Guarantee: {(coverage * 100).toFixed(0)}%</div>
         <div className={isCorrect ? 'success' : 'failure'}>
-          {isCorrect ? '✓ True value in prediction set' : '✗ True value not in prediction set'}
+          {isCorrect ? '✓ True value within prediction set' : '✗ True value outside prediction set'}
         </div>
       </div>
     </div>

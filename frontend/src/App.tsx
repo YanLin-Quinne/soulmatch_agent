@@ -195,6 +195,14 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // HTTP keep-alive to prevent HuggingFace Spaces from sleeping
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch('/health').catch(() => {});
+    }, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, []);
+
   const connectWebSocket = useCallback(() => {
     const websocket = new WebSocket(`${WS_BASE}/ws/${userId.current}`);
 
@@ -479,6 +487,24 @@ function App() {
   const toggleTheme = () => {
     setTheme(t => t === 'dark' ? 'light' : 'dark');
   };
+
+  // AI Digital Twin: Auto-redirect to comparison after 20 turns
+  useEffect(() => {
+    if (turnCount >= 20 && friendGuess && page === 'twin-chat') {
+      setSystemInference({
+        gender: featureData?.features?.sex || 'Unknown',
+        age_range: featureData?.features?.age || 'Unknown',
+        occupation_guess: featureData?.features?.occupation || 'Unknown',
+        mbti: featureData?.features?.mbti || 'Unknown',
+        bigFive: {
+          E: featureData?.features?.big_five_extraversion || 0.5,
+          A: featureData?.features?.big_five_agreeableness || 0.5
+        },
+        communication_style: featureData?.features?.communication_style || 'Unknown'
+      });
+      setPage('comparison');
+    }
+  }, [turnCount, friendGuess, page]);
 
   if (page === 'chat' && selectedChar) {
     return (
@@ -1101,38 +1127,23 @@ function App() {
       <DigitalTwinSetup
         onStartChat={(guess) => {
           setFriendGuess(guess);
-          const randomChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
-          setSelectedChar(randomChar);
           setMessages([]);
-          setPage('chat');
-          // Delay setting to twin-chat to ensure WebSocket connection is established
-          setTimeout(() => setPage('twin-chat'), 100);
+          setTurnCount(0);
+          setFeatureData(null);
+          setPage('twin-chat');
+          // Start conversation with a random bot for AI Digital Twin mode
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            const randomBot = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
+            ws.send(JSON.stringify({ action: 'start', bot_id: randomBot.id }));
+          }
         }}
       />
     );
   }
 
   if (page === 'twin-chat') {
-    // AI twin chat: reuse existing chat UI, redirect to comparison after 20 turns
+    // AI Digital Twin chat: reuse existing chat interface, redirect after 20 turns
     const twinProgress = Math.min(turnCount / 20, 1);
-
-    // Auto-redirect to comparison page after 20 turns
-    useEffect(() => {
-      if (turnCount >= 20 && friendGuess && page === 'twin-chat') {
-        setSystemInference({
-          gender: featureData?.features?.sex || 'Unknown',
-          age_range: featureData?.features?.age || 'Unknown',
-          occupation_guess: featureData?.features?.occupation || 'Unknown',
-          mbti: featureData?.features?.mbti || 'Unknown',
-          bigFive: {
-            E: featureData?.features?.big_five_extraversion || 0.5,
-            A: featureData?.features?.big_five_agreeableness || 0.5
-          },
-          communication_style: featureData?.features?.communication_style || 'Unknown'
-        });
-        setPage('comparison');
-      }
-    }, [turnCount, friendGuess, page]);
 
     return (
       <div className="chat-page">

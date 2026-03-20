@@ -64,16 +64,16 @@ export default function ComparisonView({
   const matchClass = matchPct >= 70 ? 'high' : matchPct >= 40 ? 'mid' : 'low';
   const matchText =
     matchPct >= 70
-      ? 'High match! You know them well'
+      ? 'Great match! You know them well'
       : matchPct >= 40
-      ? 'Partial match, you got some traits right'
-      : 'Big difference, maybe they have a side you don\'t know';
+      ? 'Partial match — you got some traits right'
+      : 'Big differences — they may have a side you didn\'t know';
 
   return (
     <div className="comparison-screen">
       <div className="comparison-content">
         <h2 className="comparison-title">🔍 Profile Comparison</h2>
-        <p className="comparison-subtitle">Your Prediction vs System Inference</p>
+        <p className="comparison-subtitle">Your Guess vs System Inference</p>
 
         <div className={`match-badge ${matchClass}`}>
           {matchPct}% Match — {matchText}
@@ -111,13 +111,13 @@ export default function ComparisonView({
               </span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">Communication Style</span>
+              <span className="trait-label">Communication</span>
               <span className="trait-value">{systemInference.communication_style || '?'}</span>
             </div>
           </div>
 
           <div className="compare-card friend">
-            <h3>👤 Your Prediction</h3>
+            <h3>👤 Your Guess</h3>
             <div className="trait-row">
               <span className="trait-label">Gender</span>
               <span className="trait-value">
@@ -145,11 +145,11 @@ export default function ComparisonView({
               <span className="trait-value">{100 - friendGuess.EI}%</span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">Emotionality</span>
+              <span className="trait-label">Sensitivity</span>
               <span className="trait-value">{friendGuess.TF}%</span>
             </div>
             <div className="trait-row">
-              <span className="trait-label">Your Description</span>
+              <span className="trait-label">Description</span>
               <span className="trait-value" style={{ fontSize: '11px' }}>
                 {friendGuess.description || 'None'}
               </span>

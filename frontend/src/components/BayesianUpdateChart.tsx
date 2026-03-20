@@ -33,7 +33,7 @@ export const BayesianUpdateChart: React.FC<BayesianUpdateChartProps> = ({ featur
         })}
       </svg>
       <div className="chart-info">
-        Final: μ={updates[updates.length - 1]?.mean.toFixed(2)}, 
+        Final: μ={updates[updates.length - 1]?.mean.toFixed(2)},
         σ²={updates[updates.length - 1]?.variance.toFixed(2)}
       </div>
     </div>

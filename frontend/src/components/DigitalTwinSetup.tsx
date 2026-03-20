@@ -36,13 +36,13 @@ export default function DigitalTwinSetup({ onStartChat }: DigitalTwinSetupProps)
         <p className="clone-subtitle">
           Before chatting with the AI twin, fill in what you think this person is like.
           <br />
-          After chatting, the system will compare your prediction vs system inference to see how well you know them.
+          After the chat, the system will compare your guess vs its inference to see how well you know them.
         </p>
 
         <div className="clone-form">
           <div className="form-row">
             <div className="form-group">
-              <label>Their Gender</label>
+              <label>Their Gender (your guess)</label>
               <select
                 value={guess.gender}
                 onChange={e => setGuess({ ...guess, gender: e.target.value })}
@@ -50,11 +50,11 @@ export default function DigitalTwinSetup({ onStartChat }: DigitalTwinSetupProps)
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
                 <option value="Non-binary">Non-binary</option>
-                <option value="Uncertain">Uncertain</option>
+                <option value="Unsure">Unsure</option>
               </select>
             </div>
             <div className="form-group">
-              <label>Their Age Range</label>
+              <label>Their Age Range (your guess)</label>
               <select
                 value={guess.age_range}
                 onChange={e => setGuess({ ...guess, age_range: e.target.value })}
@@ -71,22 +71,22 @@ export default function DigitalTwinSetup({ onStartChat }: DigitalTwinSetupProps)
 
           <div className="form-row">
             <div className="form-group">
-              <label>Their MBTI</label>
+              <label>Their MBTI (your guess)</label>
               <input
                 type="text"
                 value={guess.mbti}
                 onChange={e => setGuess({ ...guess, mbti: e.target.value.toUpperCase() })}
-                placeholder="e.g., ENFP (leave blank if uncertain)"
+                placeholder="e.g. ENFP (leave blank if unsure)"
                 maxLength={4}
               />
             </div>
             <div className="form-group">
-              <label>Their Occupation</label>
+              <label>Their Occupation (your guess)</label>
               <input
                 type="text"
                 value={guess.occupation}
                 onChange={e => setGuess({ ...guess, occupation: e.target.value })}
-                placeholder="e.g., Engineer, Student..."
+                placeholder="e.g. Engineer, Student..."
               />
             </div>
           </div>
@@ -117,17 +117,17 @@ export default function DigitalTwinSetup({ onStartChat }: DigitalTwinSetupProps)
           </div>
 
           <div className="form-group">
-            <label>Describe what you think this person is like in a few sentences</label>
+            <label>Describe what you think they are like in a few sentences</label>
             <textarea
               value={guess.description}
               onChange={e => setGuess({ ...guess, description: e.target.value })}
-              placeholder="e.g., I think they are an introverted but thoughtful person who enjoys deep thinking..."
+              placeholder="e.g. I think they are introverted but insightful, enjoys deep thinking..."
               rows={4}
             />
           </div>
 
           <p className="form-note">
-            💡 After filling this out, you will chat with the AI twin for 20 turns, then compare your prediction with the system inference
+            💡 After submitting, you'll chat with the AI twin for 20 turns, then compare your guess with system inference
           </p>
 
           <button className="submit-btn" onClick={handleSubmit}>

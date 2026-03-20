@@ -18,14 +18,14 @@ export const PersonaGrid: React.FC<PersonaGridProps> = ({ onSelectPersona }) => 
           >
             <div className="avatar">{persona.avatar}</div>
             <h3>{persona.name}</h3>
-            <p className="age-gender">{persona.age} · {persona.gender}</p>
+            <p className="age-gender">{persona.age} yrs · {persona.gender}</p>
             <p className="bio">{persona.bio}</p>
             <div className="tags">
               {persona.personality.slice(0, 2).map((trait, i) => (
                 <span key={i} className="tag">{trait}</span>
               ))}
             </div>
-            <div className="badge">{persona.isAI ? '🤖 AI' : '👤 Human'}</div>
+            <div className="badge">{persona.isAI ? '🤖 AI' : '👤 Real'}</div>
           </div>
         ))}
       </div>
