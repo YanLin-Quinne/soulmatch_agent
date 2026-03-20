@@ -198,6 +198,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 quote_id = message.get("quote_id")
                 quote_text = message.get("quote_text")
 
+                # File context injection (from HTTP upload)
+                file_context = message.get("file_context")
+                file_name = message.get("file_name")
+                if file_context and file_name:
+                    content = f"[Attached file: {file_name}]\n{file_context}\n\n---\nUser message: {content}"
+
                 if not content:
                     await manager.send_message(user_id, {
                         "type": "error",

@@ -5,7 +5,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, HTTPException
+from fastapi import FastAPI, WebSocket, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +16,7 @@ from src.config import settings
 from src.api.session_manager import session_manager
 from src.api.chat_handler import chat_handler
 from src.api.websocket import websocket_endpoint
+from src.api.file_handler import extract_text
 from src.agents.persona_agent import create_agent_pool_from_file
 from src.agents.tools.builtin import register_builtin_tools
 from src.agents.llm_router import router
@@ -344,6 +345,27 @@ async def get_user_summary(user_id: str):
             user_id=user_id,
             error=str(e)
         )
+
+
+# ============================================
+# File Upload Endpoint
+# ============================================
+
+@app.post("/api/v1/upload", tags=["Upload"])
+async def upload_file(file: UploadFile = File(...)):
+    """
+    Upload a file (PDF, TXT, DOCX) and extract text content.
+
+    Returns extracted text for injection into chat context.
+    Max file size: 5MB. Max text length: 10000 characters.
+    """
+    text = await extract_text(file)
+    return {
+        "success": True,
+        "text": text,
+        "char_count": len(text),
+        "filename": file.filename,
+    }
 
 
 # ============================================

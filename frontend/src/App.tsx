@@ -176,6 +176,13 @@ function App() {
 
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // File upload state
+  const [fileContext, setFileContext] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -451,8 +458,14 @@ function App() {
       payload.quote_id = quotedMessage.id;
       payload.quote_text = quotedMessage.content;
     }
+    if (fileContext && fileName) {
+      payload.file_context = fileContext;
+      payload.file_name = fileName;
+    }
     ws.send(JSON.stringify(payload));
     setQuotedMessage(null);
+    setFileContext(null);
+    setFileName(null);
   };
 
   const handleBack = () => {
@@ -480,6 +493,63 @@ function App() {
     setLoveDetail(null);
     setFriendGuess(null);
     setSystemInference(null);
+    setFileContext(null);
+    setFileName(null);
+  };
+
+  const ALLOWED_FILE_TYPES = ['.pdf', '.txt', '.docx'];
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+  const handleFileUpload = async (file: File) => {
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!ALLOWED_FILE_TYPES.includes(ext)) {
+      setMessages(prev => [...prev, {
+        id: `sys-${Date.now()}`, sender: 'system',
+        content: `Unsupported file type: ${ext}. Allowed: PDF, TXT, DOCX`,
+        timestamp: new Date(),
+      }]);
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setMessages(prev => [...prev, {
+        id: `sys-${Date.now()}`, sender: 'system',
+        content: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max: 5MB`,
+        timestamp: new Date(),
+      }]);
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/v1/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        setFileContext(data.text);
+        setFileName(file.name);
+      } else {
+        setMessages(prev => [...prev, {
+          id: `sys-${Date.now()}`, sender: 'system',
+          content: `Upload failed: ${data.detail || 'Unknown error'}`,
+          timestamp: new Date(),
+        }]);
+      }
+    } catch (e: any) {
+      setMessages(prev => [...prev, {
+        id: `sys-${Date.now()}`, sender: 'system',
+        content: `Upload error: ${e.message}`,
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileUpload(file);
   };
 
   const progress = Math.min(turnCount / 30, 1);
@@ -608,13 +678,28 @@ function App() {
               onDismiss={() => setConversationHints(null)}
             />
 
-            <div className="input-area">
+            <div className={`input-area ${dragOver ? 'drag-over' : ''}`} onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}>
               {quotedMessage && (
                 <div className="quote-preview">
                   <span>Replying to: {quotedMessage.content.slice(0, 60)}{quotedMessage.content.length > 60 ? '...' : ''}</span>
                   <button onClick={() => setQuotedMessage(null)} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>&times;</button>
                 </div>
               )}
+              {uploading && (
+                <div className="upload-indicator">
+                  <span>Extracting text...</span>
+                </div>
+              )}
+              {fileName && !uploading && (
+                <div className="file-preview">
+                  <span className="file-name">📎 {fileName}</span>
+                  <button onClick={() => { setFileContext(null); setFileName(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>&times;</button>
+                </div>
+              )}
+              <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".pdf,.txt,.docx" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} />
+              <button className="attach-btn" onClick={() => fileInputRef.current?.click()} disabled={!isConnected || uploading} title="Attach file (PDF, TXT, DOCX)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>
               <input
                 value={inputText}
                 onChange={e => {
@@ -1199,7 +1284,22 @@ function App() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="input-area">
+            <div className={`input-area ${dragOver ? 'drag-over' : ''}`} onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}>
+              {uploading && (
+                <div className="upload-indicator">
+                  <span>Extracting text...</span>
+                </div>
+              )}
+              {fileName && !uploading && (
+                <div className="file-preview">
+                  <span className="file-name">📎 {fileName}</span>
+                  <button onClick={() => { setFileContext(null); setFileName(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>&times;</button>
+                </div>
+              )}
+              <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".pdf,.txt,.docx" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} />
+              <button className="attach-btn" onClick={() => fileInputRef.current?.click()} disabled={!isConnected || uploading} title="Attach file (PDF, TXT, DOCX)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>
               <input
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
