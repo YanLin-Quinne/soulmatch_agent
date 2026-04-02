@@ -44,7 +44,7 @@ export default function PersonalityMode({ personas, onSelectPersona }: Personali
   return (
     <div className="personality-mode">
       <div className="hero-section">
-        <h1 className="hero-title">SoulMatch Agent</h1>
+        <h1 className="hero-title">AI YOU</h1>
         <p className="hero-subtitle">Choose someone to chat with. After 30 turns, the system will infer your personality profile</p>
       </div>
 

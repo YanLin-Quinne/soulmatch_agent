@@ -1,8 +1,8 @@
-# SoulMatch v2.0 - LLM Configuration Guide (2026-02-22)
+# AI YOU v2.0 - LLM Configuration Guide (2026-02-22)
 
 ## Supported LLM Providers
 
-SoulMatch v2.0 supports 5 state-of-the-art LLM providers with automatic fallback and :
+AI YOU v2.0 supports 5 state-of-the-art LLM providers with automatic fallback and :
 
 ### 1. OpenAI GPT-5.2
 - **Model ID**: `gpt-5.2`
@@ -210,5 +210,5 @@ When using these models in research:
 ---
 
 **Last Updated**: February 22, 2026
-**SoulMatch Version**: v2.0
+**AI YOU Version**: v2.0
 **Supported Models**: 15 (5 providers × 3 tiers)

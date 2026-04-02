@@ -1,4 +1,4 @@
-"""Evaluation metrics for SoulMatch baseline experiments.
+"""Evaluation metrics for AI YOU baseline experiments.
 
 Computes all metrics needed for the paper's experiment tables:
 - Classification: accuracy, F1 (macro/micro/weighted)

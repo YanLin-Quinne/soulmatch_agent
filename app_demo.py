@@ -1,5 +1,5 @@
 """
-app_demo.py — SoulMatch Agent · Professional Demo UI
+app_demo.py — AI YOU Agent · Professional Demo UI
 EMNLP 2025 System Demonstration
 
 Two-column layout:
@@ -548,7 +548,7 @@ input[type="text"]:focus, textarea:focus {
 
 # ─── App ─────────────────────────────────────────────────────────────────────
 
-with gr.Blocks(title="SoulMatch · EMNLP Demo") as demo:
+with gr.Blocks(title="AI YOU · EMNLP Demo") as demo:
 
     # ── Persistent state ──────────────────────────────────────────────────────
     state_orch     = gr.State(None)   # OrchestratorAgent instance
@@ -558,7 +558,7 @@ with gr.Blocks(title="SoulMatch · EMNLP Demo") as demo:
     # ── Header ────────────────────────────────────────────────────────────────
     gr.HTML("""
     <div class="demo-header">
-      <h1>🧠 <span>SoulMatch</span> · Multi-Agent Relationship Prediction System</h1>
+      <h1>🧠 <span>AI YOU</span> · Multi-Agent Relationship Prediction System</h1>
       <p class="sub1">EMNLP 2025 System Demonstration &nbsp;·&nbsp; 12-Agent Pipeline &nbsp;·&nbsp;
         Bayesian Inference &nbsp;·&nbsp; Conformal Prediction &nbsp;·&nbsp; Three-Layer Memory</p>
       <p class="sub2">Infer Big-Five personality, emotion trajectory, and relationship stage from free-form conversation</p>

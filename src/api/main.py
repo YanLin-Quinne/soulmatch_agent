@@ -1,4 +1,4 @@
-"""FastAPI main application - SoulMatch backend API"""
+"""FastAPI main application - AI YOU backend API"""
 
 import asyncio
 import time
@@ -108,7 +108,7 @@ async def lifespan(app: FastAPI):
         - Clean up resources
     """
     # Startup
-    logger.info("Starting up SoulMatch API...")
+    logger.info("Starting up AI YOU API...")
 
     bootstrap = create_default_bootstrap()
     results = await bootstrap.run_all()
@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
             logger.error(f"Bootstrap stage {r.stage.name} failed: {r.error}")
     app.state.bootstrap = bootstrap
 
-    logger.info("✅ SoulMatch API started successfully")
+    logger.info("✅ AI YOU API started successfully")
 
     # Start background session cleanup task (every 30 minutes)
     async def _periodic_session_cleanup():
@@ -136,7 +136,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     cleanup_task.cancel()
-    logger.info("Shutting down SoulMatch API...")
+    logger.info("Shutting down AI YOU API...")
     
     # Clean up all sessions
     active_count = session_manager.get_active_sessions_count()
@@ -144,7 +144,7 @@ async def lifespan(app: FastAPI):
         logger.info(f"Cleaning up {active_count} active sessions...")
         # Could save session state here if needed
     
-    logger.info("✅ SoulMatch API shutdown complete")
+    logger.info("✅ AI YOU API shutdown complete")
 
 
 # ============================================
@@ -152,7 +152,7 @@ async def lifespan(app: FastAPI):
 # ============================================
 
 app = FastAPI(
-    title="SoulMatch API",
+    title="AI YOU API",
     description="AI-powered dating app backend with persona-based conversations",
     version="1.0.0",
     lifespan=lifespan
@@ -434,7 +434,7 @@ async def api_root():
     API info endpoint
     """
     return {
-        "name": "SoulMatch API",
+        "name": "AI YOU API",
         "version": "2.0.0",
         "description": "AI-powered dating prediction agent with multi-LLM routing and tool calling",
         "endpoints": {
@@ -475,7 +475,7 @@ else:
     async def root():
         """Root endpoint when frontend not built"""
         return {
-            "name": "SoulMatch API",
+            "name": "AI YOU API",
             "version": "2.0.0",
             "message": "Frontend not built. Run: cd frontend && npm install && npm run build"
         }

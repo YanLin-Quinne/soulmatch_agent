@@ -168,7 +168,7 @@ class TestFastAPIEndpoints:
         # Expected response structure
         health_response = {
             "status": "ok",
-            "service": "SoulMatch API",
+            "service": "AI YOU API",
             "bot_personas_loaded": 0
         }
         

@@ -1,5 +1,5 @@
 ---
-title: SoulMatch Agent
+title: AI YOU Agent
 emoji: 💕
 colorFrom: blue
 colorTo: green
@@ -8,7 +8,7 @@ pinned: false
 license: mit
 ---
 
-# SoulMatch Agent v2.0
+# AI YOU Agent v2.0
 
 Multi-agent relationship prediction system with conformal uncertainty quantification.
 

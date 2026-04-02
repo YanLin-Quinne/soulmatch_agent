@@ -112,7 +112,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     # Send welcome message
     await manager.send_message(user_id, {
         "type": "welcome",
-        "message": f"Connected to SoulMatch! Ready to chat.",
+        "message": f"Connected to AI YOU! Ready to chat.",
         "user_id": user_id
     })
     

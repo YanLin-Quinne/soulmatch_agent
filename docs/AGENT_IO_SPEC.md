@@ -1,8 +1,8 @@
-# SoulMatch v2.0 - Agent I/O Specification & Communication Protocol
+# AI YOU v2.0 - Agent I/O Specification & Communication Protocol
 
 ## Overview
 
-SoulMatch v2.0 uses a **shared context architecture** where all agents read from and write to a central `AgentContext` object. This document specifies the exact input/output contract for each agent and the communication flow.
+AI YOU v2.0 uses a **shared context architecture** where all agents read from and write to a central `AgentContext` object. This document specifies the exact input/output contract for each agent and the communication flow.
 
 ---
 

@@ -3,7 +3,7 @@ Alternative Gradio interface for HuggingFace Spaces deployment.
 Primary interface: src/api/main.py (FastAPI + React frontend)
 This file provides a simpler chat-only UI for demo purposes.
 
-SoulMatch Agent - Professional Demo UI
+AI YOU Agent - Professional Demo UI
 EMNLP 2025 System Demonstration
 """
 
@@ -139,11 +139,11 @@ input:focus, textarea:focus {
 }
 """
 
-with gr.Blocks(title="SoulMatch Agent") as demo:
+with gr.Blocks(title="AI YOU Agent") as demo:
 
     gr.HTML('''
     <div style="text-align: center; margin: 40px 0 24px;">
-        <h1 style="font-family: 'Space Mono', monospace; font-size: 3em; font-weight: 700; background: linear-gradient(135deg, #7b2ff7 0%, #00e5a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;">SoulMatch</h1>
+        <h1 style="font-family: 'Space Mono', monospace; font-size: 3em; font-weight: 700; background: linear-gradient(135deg, #7b2ff7 0%, #00e5a0 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px;">AI YOU</h1>
         <p style="color: #7a7b8e; font-size: 1.1em;">通过30句对话推断你的完整性格画像</p>
     </div>
     ''')

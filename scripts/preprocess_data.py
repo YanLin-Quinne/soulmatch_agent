@@ -17,7 +17,7 @@ def main():
     """Run complete data preprocessing pipeline"""
     
     logger.info("=" * 60)
-    logger.info("SoulMatch Data Preprocessing Pipeline")
+    logger.info("AI YOU Data Preprocessing Pipeline")
     logger.info("=" * 60)
     
     # Paths

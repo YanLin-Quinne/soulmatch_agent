@@ -1,1 +1,1 @@
-"""SoulMatch experiments package."""
+"""AI YOU experiments package."""

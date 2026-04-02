@@ -1,4 +1,4 @@
-# SoulMatch Agent 部署指南
+# AI YOU Agent 部署指南
 
 ## 升级完成清单
 
@@ -54,14 +54,14 @@ DEEPSEEK_API_KEY=your_deepseek_key
 
 ### 3. 部署命令
 ```bash
-cd /Users/quinne/soulmatch_agent
+cd /Users/quinne/AI-YOU-TEST
 git add .
 git commit -m "Upgrade to FastAPI+React with multi-agent discussion"
 git push hf main
 ```
 
 ### 4. 验证部署
-访问: `https://huggingface.co/spaces/YOUR_USERNAME/soulmatch-agent`
+访问: `https://huggingface.co/spaces/YOUR_USERNAME/AI-YOU-TEST`
 
 测试端点:
 - `GET /health` - 健康检查
@@ -72,7 +72,7 @@ git push hf main
 
 ### 启动后端
 ```bash
-cd /Users/quinne/soulmatch_agent
+cd /Users/quinne/AI-YOU-TEST
 uvicorn src.api.main:app --reload --port 8000
 ```
 
@@ -189,5 +189,5 @@ cd frontend && npm install && npm run build
 
 ## 联系方式
 
-- GitHub: https://github.com/YOUR_USERNAME/soulmatch_agent
-- HF Space: https://huggingface.co/spaces/YOUR_USERNAME/soulmatch-agent
+- GitHub: https://github.com/YOUR_USERNAME/AI-YOU-TEST
+- HF Space: https://huggingface.co/spaces/YOUR_USERNAME/AI-YOU-TEST

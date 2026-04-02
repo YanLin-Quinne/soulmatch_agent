@@ -113,7 +113,7 @@ def get_weather(city: str) -> str:
         resp = httpx.get(
             f"https://wttr.in/{city}",
             params={"format": "j1"},
-            headers={"User-Agent": "soulmatch-agent/1.0"},
+            headers={"User-Agent": "ai-you/1.0"},
             timeout=5.0,
         )
         data = resp.json()

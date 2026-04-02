@@ -1,6 +1,6 @@
-# SoulMatch Agent 核心层优化报告
+# AI YOU Agent 核心层优化报告
 
-> 基于 Claude Code 源码分析（claude-code-analysis / claw-code / claw-code-parity）的五个核心架构模式，对 soulmatch_agent 进行系统性优化。
+> 基于 Claude Code 源码分析（claude-code-analysis / claw-code / claw-code-parity）的五个核心架构模式，对 AI-YOU-TEST 进行系统性优化。
 
 ## 优化总览
 

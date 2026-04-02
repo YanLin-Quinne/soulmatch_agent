@@ -412,4 +412,4 @@ Title: Conversation as Environment:
 
 ---
 
-*This roadmap connects: demo paper (emotion baseline), research paper (RL environment), greed-mem (memory/continuous learning), and the SoulMatch system.*
+*This roadmap connects: demo paper (emotion baseline), research paper (RL environment), greed-mem (memory/continuous learning), and the AI YOU system.*

@@ -6,7 +6,7 @@ export default function ModeSelector({ onSelectMode }: ModeSelectorProps) {
   return (
     <div className="mode-selector-screen">
       <div className="mode-selector-content">
-        <h1 className="mode-title">SoulMatch Agent</h1>
+        <h1 className="mode-title">AI YOU</h1>
         <p className="mode-subtitle">Choose your experience mode</p>
 
         <div className="mode-cards">

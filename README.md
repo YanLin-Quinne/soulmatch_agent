@@ -1,5 +1,5 @@
 ---
-title: SoulMatch Agent
+title: AI YOU Agent
 emoji: 💕
 colorFrom: blue
 colorTo: green
@@ -8,7 +8,7 @@ pinned: false
 license: mit
 ---
 
-# SoulMatch Agent v2.0
+# AI YOU Agent v2.0
 
 **Multi-Agent Relationship Prediction System**
 
@@ -26,7 +26,7 @@ A multi-agent orchestration system with **12 collaborative agents**, **Bayesian 
 
 ![Architecture Overview](docs/architecture_overview.jpg)
 
-![SoulMatch Framework — Multi-Agent + Bayesian + Conformal Prediction](docs/soulmatch_framework.png)
+![AI YOU Framework — Multi-Agent + Bayesian + Conformal Prediction](docs/ai_you_framework.png)
 
 Each user message triggers a 5-phase DAG pipeline — not a simple sequential chain, but a directed acyclic graph with data dependencies:
 
@@ -229,8 +229,8 @@ frontend/
 ## Quick Start
 
 ```bash
-git clone https://github.com/YanLin-Quinne/soulmatch_agent.git
-cd soulmatch_agent
+git clone https://github.com/YanLin-Quinne/AI-YOU-TEST.git
+cd AI-YOU-TEST
 cp .env.example .env   # Add your API keys
 pip install -r requirements.txt
 cd frontend && npm install && npm run build && cd ..

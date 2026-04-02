@@ -1,7 +1,7 @@
 {
-  "name": "soulmatch-agent",
+  "name": "ai-you",
   "version": "0.1.0",
-  "description": "Social matching agent system based on OkCupid dataset",
+  "description": "AI YOU agent system based on OkCupid dataset",
   "private": true,
   "workspaces": [
     "frontend"

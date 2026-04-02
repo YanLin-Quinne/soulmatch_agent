@@ -116,7 +116,7 @@ _bot_pool = None
 
 
 def create_default_bootstrap() -> BootstrapGraph:
-    """Create the standard soulmatch bootstrap graph."""
+    """Create the standard ai_you bootstrap graph."""
     graph = BootstrapGraph()
 
     # Stage 0: CONFIG — validate settings and API keys

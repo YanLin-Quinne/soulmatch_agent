@@ -1,4 +1,4 @@
-"""Extended Ablation Study for SoulMatch.
+"""Extended Ablation Study for AI YOU.
 
 Tests the contribution of each system component by selectively disabling them:
 1. Three-Layer Memory vs Flat Storage
@@ -102,7 +102,7 @@ _TEST_CONVERSATION_TURNS = [
 
 
 class AblationStudy:
-    """Extended ablation study testing contribution of each SoulMatch component."""
+    """Extended ablation study testing contribution of each AI YOU component."""
 
     def __init__(self):
         self.router = LLMRouter()
@@ -457,7 +457,7 @@ async def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Extended Ablation Study for SoulMatch",
+        description="Extended Ablation Study for AI YOU",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"

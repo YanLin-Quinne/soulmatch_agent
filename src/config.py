@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     
     # Database
     chroma_db_path: str = "./chroma_db"
-    database_url: str = "sqlite:///./soulmatch.db"  # SQLite (开发) 或 PostgreSQL (生产)
-    database_path: str = "./soulmatch.db"  # SQLite 文件路径
+    database_url: str = "sqlite:///./ai_you.db"  # SQLite (开发) 或 PostgreSQL (生产)
+    database_path: str = "./ai_you.db"  # SQLite 文件路径
     sql_echo: bool = False  # SQL 日志
     
     # Training Configuration

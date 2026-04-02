@@ -310,7 +310,7 @@
 | **Availability** | ✅ Open — GitHub: [joonspk-research/generative_agents](https://github.com/joonspk-research/generative_agents) |
 | **Framework Layer** | Behavioral (agent 行为模拟) |
 | **RQ Mapping** | RQ1 — 长期交互中 agent personality 演变参考 |
-| **Usability** | **Medium** — 架构参考（memory/reflection 已在 SoulMatch 中实现），实验方法可复用 |
+| **Usability** | **Medium** — 架构参考（memory/reflection 已在 AI YOU 中实现），实验方法可复用 |
 
 ### 7.2 Silicon Sampling
 | 字段 | 内容 |
@@ -400,7 +400,7 @@
 
 ## 9. Existing Project Data Assets
 
-SoulMatch Agent (`/Users/quinne/soulmatch_agent/`) 中已有的数据：
+AI YOU Agent (`/Users/quinne/AI-YOU-TEST/`) 中已有的数据：
 
 | 文件路径 | 内容 | 规模 |
 |----------|------|------|

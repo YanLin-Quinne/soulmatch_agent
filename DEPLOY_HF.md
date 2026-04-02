@@ -27,7 +27,7 @@ Configure at least one LLM provider key.
 ## Step 3: Push Code
 
 ```bash
-cd /Users/quinne/soulmatch_agent
+cd /Users/quinne/AI-YOU-TEST
 
 # Add HuggingFace remote
 git remote add hf https://huggingface.co/spaces/Quinnnnnne/AI-YOU-TEST
@@ -106,7 +106,7 @@ Set up an external monitor to ping the Space independently:
 2. Sign up / log in
 3. Click **Add New Monitor**:
    - **Monitor Type**: HTTP(s)
-   - **Friendly Name**: SoulMatch Agent
+   - **Friendly Name**: AI YOU Agent
    - **URL**: `https://quinnnnnne-AI-YOU-TEST.hf.space/health`
    - **Monitoring Interval**: 5 minutes
 4. Save

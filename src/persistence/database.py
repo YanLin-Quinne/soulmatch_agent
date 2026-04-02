@@ -121,12 +121,12 @@ class DatabaseManager:
 
         Args:
             database_url: 数据库 URL
-                - SQLite: sqlite:///./soulmatch.db
-                - PostgreSQL: postgresql://user:pass@localhost/soulmatch
+                - SQLite: sqlite:///./ai_you.db
+                - PostgreSQL: postgresql://user:pass@localhost/ai_you
         """
         if database_url is None:
             # 默认使用 SQLite
-            db_path = os.getenv("DATABASE_PATH", "./soulmatch.db")
+            db_path = os.getenv("DATABASE_PATH", "./ai_you.db")
             database_url = f"sqlite:///{db_path}"
 
         self.engine = create_engine(

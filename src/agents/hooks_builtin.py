@@ -1,4 +1,4 @@
-"""Built-in hooks for the soulmatch agent pipeline."""
+"""Built-in hooks for the ai_you agent pipeline."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Baseline methods for SoulMatch evaluation."""
+"""Baseline methods for AI YOU evaluation."""
 
 from .direct_prompting import DirectPromptingBaseline
 from .cot_prompting import CoTBaseline

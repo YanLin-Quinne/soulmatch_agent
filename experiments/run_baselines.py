@@ -1,4 +1,4 @@
-"""Unified baseline evaluation runner for SoulMatch experiments.
+"""Unified baseline evaluation runner for AI YOU experiments.
 
 Usage:
     python experiments/run_baselines.py --dataset data/evaluation/eval_dataset.json --output experiments/results/
@@ -26,11 +26,11 @@ from src.agents.feature_prediction_agent import FeaturePredictionAgent
 
 
 # =====================================================================
-# SoulMatch system wrappers (Full + Ablation variants)
+# AI YOU system wrappers (Full + Ablation variants)
 # =====================================================================
 
-class SoulMatchWrapper:
-    """Wrapper around full SoulMatch system for evaluation.
+class AIYouWrapper:
+    """Wrapper around full AI YOU system for evaluation.
 
     Supports ablation configs via constructor flags:
     - use_cot: enable/disable CoT reasoning in feature prediction
@@ -42,7 +42,7 @@ class SoulMatchWrapper:
 
     def __init__(
         self,
-        name: str = "SoulMatch (Full)",
+        name: str = "AI YOU (Full)",
         use_cot: bool = True,
         use_bayesian: bool = True,
         use_conformal: bool = True,
@@ -55,7 +55,7 @@ class SoulMatchWrapper:
         self.use_discussion_room = use_discussion_room
 
     def predict_personality(self, dialogue: List[Dict]) -> Dict:
-        """Run SoulMatch personality inference pipeline."""
+        """Run AI YOU personality inference pipeline."""
         t0 = time.time()
 
         agent = FeaturePredictionAgent(
@@ -175,7 +175,7 @@ Assess the relationship and output JSON:
 # =====================================================================
 
 ABLATION_CONFIGS = {
-    "SoulMatch (Full)": {
+    "AI YOU (Full)": {
         "use_cot": True,
         "use_bayesian": True,
         "use_conformal": True,
@@ -217,9 +217,9 @@ def build_methods(method_names: Optional[List[str]] = None) -> Dict[str, Any]:
     all_methods["CoT"] = CoTBaseline()
     all_methods["Self-Consistency"] = SelfConsistencyBaseline(n_samples=5)
 
-    # SoulMatch variants
+    # AI YOU variants
     for name, config in ABLATION_CONFIGS.items():
-        all_methods[name] = SoulMatchWrapper(name=name, **config)
+        all_methods[name] = AIYouWrapper(name=name, **config)
 
     if method_names:
         return {k: v for k, v in all_methods.items() if k in method_names}
@@ -391,7 +391,7 @@ def run_evaluation(
 # =====================================================================
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run SoulMatch baseline evaluation")
+    parser = argparse.ArgumentParser(description="Run AI YOU baseline evaluation")
     parser.add_argument("--dataset", type=str, required=True, help="Path to eval dataset JSON")
     parser.add_argument("--output", type=str, default="experiments/results/", help="Output directory")
     parser.add_argument("--methods", nargs="*", default=None, help="Method names to run (default: all)")

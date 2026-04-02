@@ -1,5 +1,5 @@
 """
-MCP Server — exposes SoulMatch agent capabilities via Model Context Protocol.
+MCP Server — exposes AI YOU agent capabilities via Model Context Protocol.
 
 Run standalone:
     python -m src.mcp.server
@@ -24,11 +24,11 @@ except ImportError:
 
 
 def create_mcp_server() -> Any:
-    """Create and configure the MCP server with SoulMatch tools."""
+    """Create and configure the MCP server with AI YOU tools."""
     if not MCP_AVAILABLE:
         raise RuntimeError("mcp package not installed. Run: pip install mcp")
 
-    server = Server("soulmatch")
+    server = Server("ai-you")
 
     # ------------------------------------------------------------------
     # Tool definitions
@@ -175,7 +175,7 @@ async def main():
 
     server = create_mcp_server()
     async with stdio_server() as (read_stream, write_stream):
-        logger.info("SoulMatch MCP server started (stdio)")
+        logger.info("AI YOU MCP server started (stdio)")
         await server.run(read_stream, write_stream, server.create_initialization_options())
 
 

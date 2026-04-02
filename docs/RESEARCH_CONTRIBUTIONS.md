@@ -1,8 +1,8 @@
-# SoulMatch Agent: 核心研究贡献
+# AI YOU Agent: 核心研究贡献
 
 ## 概述
 
-SoulMatch Agent 是一种新颖的**逻辑驱动型多智能体社交匹配框架**，通过结构化推理和协作讨论实现高精度的人格推断和关系预测。
+AI YOU Agent 是一种新颖的**逻辑驱动型多智能体社交匹配框架**，通过结构化推理和协作讨论实现高精度的人格推断和关系预测。
 
 ## 核心创新点
 
@@ -135,7 +135,7 @@ Compress(turns[i:j]) → summary
 
 ## 方法论总结
 
-SoulMatch Agent 将社交匹配问题分解为**结构化三段论逻辑树**，并通过以下机制提升性能：
+AI YOU Agent 将社交匹配问题分解为**结构化三段论逻辑树**，并通过以下机制提升性能：
 
 1. **显式推理**：逻辑树 + 证据溯源
 2. **协作讨论**：跨 Agent 批评 + 加权投票
@@ -197,8 +197,8 @@ SoulMatch Agent 将社交匹配问题分解为**结构化三段论逻辑树**，
 ## 引用
 
 ```bibtex
-@inproceedings{soulmatch2026,
-  title={SoulMatch Agent: Logic-Driven Multi-Agent Framework for Social Matching via Structured Reasoning and Collaborative Discussion},
+@inproceedings{aiyou2026,
+  title={AI YOU Agent: Logic-Driven Multi-Agent Framework for Social Matching via Structured Reasoning and Collaborative Discussion},
   author={[Your Name]},
   booktitle={Proceedings of ACL/EMNLP 2026},
   year={2026}
@@ -214,7 +214,7 @@ SoulMatch Agent 将社交匹配问题分解为**结构化三段论逻辑树**，
 | GPT-4 Profiling | ❌ | ❌ | ❌ | ⚠️ |
 | CoT Prompting | ⚠️ | ❌ | ❌ | ⚠️ |
 | Multi-Agent Debate | ❌ | ✅ | ❌ | ⚠️ |
-| **SoulMatch (Ours)** | ✅ | ✅ | ✅ | ✅ |
+| **AI YOU (Ours)** | ✅ | ✅ | ✅ | ✅ |
 
 ---
 

@@ -1,1 +1,1 @@
-"""MCP (Model Context Protocol) server for SoulMatch."""
+"""MCP (Model Context Protocol) server for AI YOU."""

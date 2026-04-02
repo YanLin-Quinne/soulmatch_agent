@@ -9,7 +9,7 @@ export default function HomeScreen({ onSelectPersona, onEnterDigitalTwin }: Home
   return (
     <div className="home-screen">
       <div className="home-header">
-        <h1 className="home-title">SoulMatch Agent</h1>
+        <h1 className="home-title">AI YOU</h1>
         <p className="home-subtitle">Chat with someone for 30 turns and the system will infer your personality profile</p>
       </div>
 
