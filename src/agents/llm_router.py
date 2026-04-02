@@ -11,11 +11,15 @@ import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, AsyncIterator, Optional
 
 from loguru import logger
 
 from src.config import settings
+from src.agents.providers.base import ProviderClient, StreamEvent
+from src.agents.providers.anthropic_provider import AnthropicProvider
+from src.agents.providers.openai_provider import OpenAICompatProvider
+from src.agents.providers.gemini_provider import GeminiProvider
 
 
 # ---------------------------------------------------------------------------
@@ -55,26 +59,26 @@ class ModelSpec:
     output_cost_per_1k: float = 0.0  # USD per 1K output tokens
 
 
-# Available models — ordered by quality within each provider (2026-02-23 Latest)
+# Available models — ordered by quality within each provider (2026-04-02 Latest)
 MODELS: dict[str, ModelSpec] = {
-    # Anthropic Claude Opus 4.6 (2026-02, PRIMARY)
+    # Anthropic Claude Opus 4.6 (2026-04)
     "claude-opus-4": ModelSpec(Provider.ANTHROPIC, "claude-opus-4-6", 0.005, 0.025),
-    "claude-sonnet": ModelSpec(Provider.ANTHROPIC, "claude-sonnet-4-20250514", 0.003, 0.015),
-    "claude-haiku": ModelSpec(Provider.ANTHROPIC, "claude-haiku-4-20250414", 0.00025, 0.00125),
-    # OpenAI GPT-5.2 (2026-02)
-    "gpt-5": ModelSpec(Provider.OPENAI, "gpt-5.2-2025-12-11", 0.00175, 0.00525),
-    "gpt-4o": ModelSpec(Provider.OPENAI, "gpt-4o", 0.005, 0.015),
-    "gpt-4o-mini": ModelSpec(Provider.OPENAI, "gpt-4o-mini", 0.00015, 0.0006),
+    "claude-sonnet": ModelSpec(Provider.ANTHROPIC, "claude-sonnet-4-6", 0.003, 0.015),
+    "claude-haiku": ModelSpec(Provider.ANTHROPIC, "claude-haiku-4-5-20251001", 0.00025, 0.00125),
+    # OpenAI GPT-5.4 (2026-03)
+    "gpt-5": ModelSpec(Provider.OPENAI, "gpt-5.4-2026-03-05", 0.00175, 0.00525),
+    "gpt-5-mini": ModelSpec(Provider.OPENAI, "gpt-5.4-mini", 0.0005, 0.0015),
+    "gpt-5-nano": ModelSpec(Provider.OPENAI, "gpt-5.4-nano", 0.00015, 0.0006),
     # Google Gemini 3.1 Pro Preview (2026-02)
     "gemini-3-pro": ModelSpec(Provider.GEMINI, "gemini-3.1-pro-preview", 0.002, 0.008),
     "gemini-flash": ModelSpec(Provider.GEMINI, "gemini-2.5-flash", 0.0001, 0.0004),
     "gemini-pro": ModelSpec(Provider.GEMINI, "gemini-2.5-pro-preview-06-05", 0.00125, 0.01),
-    # DeepSeek V3.2 Reasoner (2026-02, reasoning mode)
+    # DeepSeek V3.2 Reasoner (2026-02)
     "deepseek-reasoner": ModelSpec(Provider.DEEPSEEK, "deepseek-reasoner", 0.00055, 0.0022),
     "deepseek-chat": ModelSpec(Provider.DEEPSEEK, "deepseek-chat", 0.00014, 0.00028),
-    # Qwen 3.5 Plus (2026-02)
+    # Qwen 3.6 Plus (2026-04)
     "qwen-max": ModelSpec(Provider.QWEN, "qwen3-max", 0.0008, 0.0024),
-    "qwen-plus": ModelSpec(Provider.QWEN, "qwen3.5-plus", 0.0004, 0.0012),
+    "qwen-plus": ModelSpec(Provider.QWEN, "qwen3.6-plus-2026-04-02", 0.0004, 0.0012),
     "qwen-turbo": ModelSpec(Provider.QWEN, "qwen-turbo", 0.0001, 0.0002),
     # Local (costs are zero — your hardware)
     "local": ModelSpec(Provider.LOCAL, "local", 0.0, 0.0),
@@ -108,18 +112,26 @@ class UsageRecord:
     call_count: int = 0
     errors: int = 0
     per_provider: dict[str, dict[str, float]] = field(default_factory=dict)
+    per_role: dict[str, dict] = field(default_factory=dict)
 
-    def record(self, provider: str, model_key: str, input_tok: int, output_tok: int, cost: float):
-        self.total_input_tokens += input_tok
-        self.total_output_tokens += output_tok
+    def record(self, provider: str, input_tokens: int, output_tokens: int, cost: float, role: str = ""):
+        self.total_input_tokens += input_tokens
+        self.total_output_tokens += output_tokens
         self.total_cost_usd += cost
         self.call_count += 1
         if provider not in self.per_provider:
             self.per_provider[provider] = {"input_tokens": 0, "output_tokens": 0, "cost": 0.0, "calls": 0}
-        self.per_provider[provider]["input_tokens"] += input_tok
-        self.per_provider[provider]["output_tokens"] += output_tok
+        self.per_provider[provider]["input_tokens"] += input_tokens
+        self.per_provider[provider]["output_tokens"] += output_tokens
         self.per_provider[provider]["cost"] += cost
         self.per_provider[provider]["calls"] += 1
+        if role:
+            if role not in self.per_role:
+                self.per_role[role] = {"input_tokens": 0, "output_tokens": 0, "cost": 0.0, "calls": 0}
+            self.per_role[role]["input_tokens"] += input_tokens
+            self.per_role[role]["output_tokens"] += output_tokens
+            self.per_role[role]["cost"] += cost
+            self.per_role[role]["calls"] += 1
 
 
 # ---------------------------------------------------------------------------
@@ -371,12 +383,51 @@ class LLMRouter:
     def __init__(self):
         self.usage = UsageRecord()
         self._available_cache: dict[Provider, bool] = {}
+        self._providers: dict[Provider, ProviderClient] = {}
 
     # ------------------------------------------------------------------
     def _is_available(self, provider: Provider) -> bool:
         if provider not in self._available_cache:
             self._available_cache[provider] = _provider_available(provider)
         return self._available_cache[provider]
+
+    # ------------------------------------------------------------------
+    def _get_provider(self, provider: Provider) -> Optional[ProviderClient]:
+        """Get or create a provider client."""
+        if provider in self._providers:
+            return self._providers[provider]
+        client = None
+        try:
+            if provider == Provider.ANTHROPIC:
+                client = AnthropicProvider()
+            elif provider == Provider.OPENAI:
+                client = OpenAICompatProvider(api_key=settings.openai_api_key)
+            elif provider == Provider.DEEPSEEK:
+                client = OpenAICompatProvider(
+                    api_key=settings.deepseek_api_key,
+                    base_url="https://api.deepseek.com",
+                    provider_name="deepseek",
+                )
+            elif provider == Provider.QWEN:
+                client = OpenAICompatProvider(
+                    api_key=settings.qwen_api_key,
+                    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                    provider_name="qwen",
+                )
+            elif provider == Provider.GEMINI:
+                client = GeminiProvider()
+            elif provider == Provider.LOCAL:
+                client = OpenAICompatProvider(
+                    api_key=settings.local_llm_api_key,
+                    base_url=settings.local_llm_base_url,
+                    provider_name="local",
+                )
+            if client and client.is_available():
+                self._providers[provider] = client
+                return client
+        except Exception as e:
+            logger.warning(f"Provider {provider.name} init failed: {e}")
+        return None
 
     # ------------------------------------------------------------------
     def chat(
@@ -451,7 +502,7 @@ class LLMRouter:
                 elapsed = time.time() - t0
 
                 cost = (in_tok / 1000) * spec.input_cost_per_1k + (out_tok / 1000) * spec.output_cost_per_1k
-                self.usage.record(spec.provider.value, model_key, in_tok, out_tok, cost)
+                self.usage.record(spec.provider.value, in_tok, out_tok, cost, role=role.name)
 
                 logger.debug(
                     f"[LLMRouter] {model_key} ok | {in_tok}+{out_tok} tok | "
@@ -489,6 +540,54 @@ class LLMRouter:
             return _call_hf(system, messages, temperature, max_tokens)
         else:
             raise ValueError(f"Unknown provider: {spec.provider}")
+
+    # ------------------------------------------------------------------
+    async def stream_chat(
+        self,
+        role: AgentRole,
+        system: str,
+        messages: list[dict],
+        *,
+        temperature: float = 0.7,
+        max_tokens: int = 300,
+        preferred_model: Optional[str] = None,
+    ) -> AsyncIterator[str]:
+        """Streaming chat — yields text chunks. Falls back to next provider on error."""
+        chain = []
+        if preferred_model and preferred_model in MODELS:
+            chain.append(preferred_model)
+        chain.extend(MODEL_ROUTING.get(role, MODEL_ROUTING[AgentRole.GENERAL]))
+
+        seen = set()
+        for model_key in chain:
+            if model_key in seen:
+                continue
+            seen.add(model_key)
+            spec = MODELS.get(model_key)
+            if not spec:
+                continue
+            provider_client = self._get_provider(spec.provider)
+            if not provider_client:
+                continue
+            try:
+                async for event in provider_client.chat_stream(
+                    model_id=spec.model_id,
+                    system=system,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                ):
+                    if event.event_type == "text_delta":
+                        yield event.text
+                    elif event.event_type == "usage":
+                        cost = (event.input_tokens * spec.input_cost_per_1k / 1000 +
+                                event.output_tokens * spec.output_cost_per_1k / 1000)
+                        self.usage.record(spec.provider.name, event.input_tokens, event.output_tokens, cost, role=role.name)
+                return  # Success, don't fall back
+            except Exception as e:
+                logger.warning(f"[LLMRouter] stream_chat failed with {model_key}: {e}")
+                continue
+        raise RuntimeError(f"All providers failed for streaming role={role.name}")
 
     # ------------------------------------------------------------------
     def get_usage_report(self) -> dict[str, Any]:
