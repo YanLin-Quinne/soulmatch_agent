@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     # Memory Aggregation
     memory_aggregation_method: str = "variance_reduction"  # variance_reduction, self_refinement, hybrid
     aggregation_num_samples: int = 3  # 方差降低采样次数
+
+    # Session compaction
+    compact_after_turns: int = 20  # Start compaction after this many turns
+    context_token_budget: int = 8000  # Rough token budget for conversation context
     
     # Local LLM (vLLM / Ollama / llama.cpp server — OpenAI-compatible endpoint)
     local_llm_base_url: str = ""          # e.g. "http://localhost:8080/v1"

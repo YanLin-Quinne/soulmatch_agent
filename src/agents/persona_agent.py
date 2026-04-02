@@ -102,6 +102,29 @@ class PersonaAgent:
             self.conversation_history.add_assistant_message(fallback)
             return fallback
 
+    async def generate_response_stream(self, message: str, ctx=None):
+        """Streaming version of generate_response. Yields text chunks."""
+        language_hint = self._detect_language(message)
+        system_prompt = self._build_system_prompt(ctx, language_hint)
+        history_msgs = self.conversation_history.to_api_format()
+        history_msgs.append({"role": "user", "content": message})
+
+        collected = []
+        async for chunk in router.stream_chat(
+            role=AgentRole.PERSONA,
+            system=system_prompt,
+            messages=history_msgs,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        ):
+            collected.append(chunk)
+            yield chunk
+
+        full_text = "".join(collected)
+        sanitized = self._sanitize_response(full_text)
+        self.conversation_history.add_user_message(message)
+        self.conversation_history.add_assistant_message(sanitized)
+
     def _sanitize_response(self, text: str) -> str:
         """Remove RPG-style actions and clean up response."""
         # Remove *action* patterns

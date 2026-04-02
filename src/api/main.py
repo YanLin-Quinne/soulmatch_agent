@@ -17,8 +17,7 @@ from src.api.session_manager import session_manager
 from src.api.chat_handler import chat_handler
 from src.api.websocket import websocket_endpoint
 from src.api.file_handler import extract_text
-from src.agents.persona_agent import create_agent_pool_from_file
-from src.agents.tools.builtin import register_builtin_tools
+from src.bootstrap import create_default_bootstrap, get_session_manager as _bootstrap_get_sm
 from src.agents.llm_router import router
 
 
@@ -111,38 +110,13 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting up SoulMatch API...")
 
-    # Register tools
-    register_builtin_tools()
-    logger.info(f"Registered built-in tools for agent tool calling")
+    bootstrap = create_default_bootstrap()
+    results = await bootstrap.run_all()
+    for r in results:
+        if not r.success:
+            logger.error(f"Bootstrap stage {r.stage.name} failed: {r.error}")
+    app.state.bootstrap = bootstrap
 
-    # Load bot personas
-    personas_path = settings.data_dir / "processed" / "bot_personas.json"
-    
-    if not personas_path.exists():
-        logger.warning(f"Bot personas file not found: {personas_path}")
-        logger.warning("API will start but conversations cannot be started until personas are loaded")
-        # Don't fail startup - allow API to run for health checks
-    else:
-        try:
-            # Create agent pool from file
-            bot_pool = create_agent_pool_from_file(
-                personas_path=personas_path,
-                temperature=0.8
-            )
-            
-            # Set pool in session manager
-            session_manager.set_bot_personas_pool(bot_pool)
-
-            logger.info(f"✅ Loaded {len(bot_pool)} bot personas from {personas_path}")
-            
-        except Exception as e:
-            logger.error(f"Failed to load bot personas: {e}")
-            logger.error(f"Exception type: {type(e).__name__}")
-            logger.error(f"Exception details: {str(e)}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            logger.warning("API will start but conversations cannot be started")
-    
     logger.info("✅ SoulMatch API started successfully")
 
     # Start background session cleanup task (every 30 minutes)
@@ -198,7 +172,7 @@ app.add_middleware(
 # Health Check
 # ============================================
 
-@app.get("/health", response_model=HealthResponse, tags=["System"])
+@app.get("/health", tags=["System"])
 async def health_check():
     """
     Health check endpoint
@@ -208,11 +182,17 @@ async def health_check():
     bot_count = 0
     if session_manager.bot_personas_pool:
         bot_count = len(session_manager.bot_personas_pool)
-    
-    return HealthResponse(
-        status="ok",
-        bot_personas_loaded=bot_count
+
+    bootstrap_results = (
+        app.state.bootstrap.get_results() if hasattr(app.state, "bootstrap") else {}
     )
+
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "bot_personas_loaded": bot_count,
+        "bootstrap": bootstrap_results,
+    }
 
 
 # ============================================

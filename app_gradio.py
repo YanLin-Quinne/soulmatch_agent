@@ -14,17 +14,15 @@ import uuid
 
 # Backend
 try:
-    from src.api.session_manager import SessionManager
-    from src.agents.persona_agent import PersonaAgentPool
+    from src.bootstrap import create_default_bootstrap, get_session_manager
     BACKEND = True
 except:
     BACKEND = False
 
 if BACKEND:
-    sm = SessionManager()
-    pool = PersonaAgentPool()
-    pool.load_from_file("./data/processed/bot_personas.json")
-    sm.set_bot_personas_pool(pool)
+    _bootstrap = create_default_bootstrap()
+    asyncio.get_event_loop().run_until_complete(_bootstrap.run_all())
+    sm = get_session_manager()
 
 PERSONAS = [
     {"id": "bot_0", "name": "林婉清", "emoji": "👩‍💼", "age": 28, "job": "政府工作者"},

@@ -170,6 +170,7 @@ class OrchestratorAgent:
 
         actions = self.state_machine.handle_user_message()
         logger.info(f"Turn {self.ctx.turn_count}, actions: {actions}")
+        self._compact_context_if_needed()
 
         response: Dict[str, Any] = {"success": True, "turn": self.ctx.turn_count}
 
@@ -429,6 +430,42 @@ class OrchestratorAgent:
     # ------------------------------------------------------------------
     # Pipeline helpers
     # ------------------------------------------------------------------
+
+    def _compact_context_if_needed(self) -> None:
+        """Compact conversation history using episodic memory summaries."""
+        from src.config import settings
+
+        if self.ctx.turn_count < settings.compact_after_turns:
+            return
+        if self.ctx.turn_count - self.ctx.compacted_up_to_turn < 10:
+            return  # Don't compact too frequently
+
+        # Reuse three-layer memory's episodic summaries (no extra LLM call)
+        if not self.memory_manager.three_layer_memory:
+            return
+        episodes = self.memory_manager.three_layer_memory.episodic_memory
+        if not episodes:
+            return
+
+        # Build compacted summary from episodic memories
+        summaries = []
+        for ep in episodes:
+            turn_info = f"(turns {ep.turn_range[0]}-{ep.turn_range[1]})" if hasattr(ep, 'turn_range') else ""
+            summaries.append(f"{turn_info} {ep.summary}")
+        combined = "\n".join(summaries)
+
+        self.ctx.compacted_summary = combined
+        # Keep only recent messages (half of compact_after_turns, minimum 10)
+        keep_recent = max(settings.compact_after_turns // 2, 10)
+        if len(self.ctx.conversation_history) > keep_recent:
+            self.ctx.conversation_history = self.ctx.conversation_history[-keep_recent:]
+        self.ctx.compacted_up_to_turn = self.ctx.turn_count
+
+        logger.info(
+            f"[Orchestrator] Compacted context at turn {self.ctx.turn_count}: "
+            f"kept {len(self.ctx.conversation_history)} recent messages, "
+            f"summary covers {len(episodes)} episodes"
+        )
 
     async def _run_parallel_analyses(self, message: str, actions: list):
         """Run emotion, scam, and memory retrieval in parallel via asyncio."""

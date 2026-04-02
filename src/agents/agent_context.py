@@ -40,6 +40,10 @@ class AgentContext:
     retrieved_memories: list[str] = field(default_factory=list)
     memory_summary: str = ""
 
+    # --- Session compaction ---
+    compacted_summary: str = ""
+    compacted_up_to_turn: int = 0
+
     # --- Scam detection (written by ScamDetectionAgent) ---
     scam_risk_score: float = 0.0
     scam_warning_level: str = "none"
@@ -151,9 +155,14 @@ class AgentContext:
         return self.conversation_history[-n:]
 
     def history_as_messages(self) -> list[dict[str, str]]:
-        """Convert to OpenAI/Anthropic message format."""
+        """Convert conversation_history to LLM message format, with compacted prefix if available."""
         from loguru import logger
         out = []
+        # Inject compacted summary as context prefix
+        if self.compacted_summary:
+            out.append({"role": "user", "content": f"[Previous conversation summary]\n{self.compacted_summary}"})
+            out.append({"role": "assistant", "content": "I remember our earlier conversation. Let's continue."})
+        # Then add recent history
         for i, h in enumerate(self.conversation_history):
             try:
                 role = "user" if h["speaker"] == "user" else "assistant"
