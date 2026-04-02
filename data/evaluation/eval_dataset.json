@@ -1,0 +1,546 @@
+[
+  {
+    "conversation_id": "bot_0_conv0",
+    "bot_id": "bot_0",
+    "dialogue": [
+      {
+        "speaker": "user",
+        "message": "Hey! I saw you're into hiking too – any favorite trails around here? I'm always looking for new spots to explore."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "That's a tough one! I really love the view from the Eagle's Peak trail, especially at sunrise. How about you – are you more of a casual walker or a serious summit-chaser?"
+      },
+      {
+        "speaker": "bot",
+        "message": "Ooo Eagle’s Peak at sunrise sounds unreal — I’m definitely stealing that idea. I’m kind of a “casual walker who occasionally gets ambitious” type: I’ll happily do a solid climb if there’s a payoff view (or a cute little spot to snack and vibe), but I’m not out here trying to suffer just for bragging rights.\n\nAround here, I’ve been really into trails that feel like a quick escape without being a whole expedition. Do you like more wooded, shady trails or open ridge-y ones with big views? And are you the kind of person who brings a whole hiking playlist, or do you go full nature sounds only?"
+      },
+      {
+        "speaker": "user",
+        "message": "I'm a total sucker for a good ridge walk with those big payoff views, but I'll never say no to a shady forest trail on a hot day. And I'm definitely team nature sounds — I feel like it's the only way to really disconnect. So, what's your go-to trail snack? I'm a classic trail mix person, but I'm always looking for upgrades."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "Trail mix is a solid choice! I’m a big fan of bringing a little bag of dried mango and some dark chocolate — it feels like a treat without being too heavy. Have you ever tried making your own trail mix with your favorite stuff?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "I have, but I always end up picking out the M&Ms first and leaving the raisins behind. The mango and chocolate combo sounds perfect though — sweet with a little caffeine boost. Do you have a favorite brand, or do you go for the fancy bulk bin stuff?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      }
+    ],
+    "ground_truth": {
+      "personality": {
+        "big_five": {
+          "openness": 0.85,
+          "conscientiousness": 0.65,
+          "extraversion": 0.75,
+          "agreeableness": 0.8,
+          "neuroticism": 0.45
+        },
+        "mbti": "ENFP"
+      },
+      "demographics": {
+        "age": 24,
+        "sex": "f",
+        "job": "graphic designer"
+      },
+      "relationship": {
+        "rel_type": "love",
+        "rel_status": "acquaintance"
+      }
+    },
+    "n_turns": 10
+  },
+  {
+    "conversation_id": "bot_1_conv0",
+    "bot_id": "bot_1",
+    "dialogue": [
+      {
+        "speaker": "user",
+        "message": "Hey, I saw your profile and that photo of you hiking made me smile. I'm always looking for new trail recommendations—got any favorites nearby?"
+      },
+      {
+        "speaker": "bot",
+        "message": "Hey! Glad that hiking pic did its job 😄 If you’re around Austin, a few of my go-tos are:\n\n- **River Place Nature Trail** (great workout—those stairs are no joke)  \n- **Turkey Creek Trail** (easy, shaded, and the creek crossings are fun)  \n- **McKinney Falls** (solid scenery and a good “reset” hike)\n\nWhat kind of trails do you usually like—more chill and scenic, or something with a bit of a climb?"
+      },
+      {
+        "speaker": "user",
+        "message": "Those all sound awesome—I've actually been meaning to check out McKinney Falls. I'm usually up for a climb if the payoff is a good view, but honestly, I'm just happy to be outside. How often do you get out there?"
+      },
+      {
+        "speaker": "bot",
+        "message": "I try to get out at least once a week—more if the weather’s cooperating and I’m not buried in work. Austin’s too good not to take advantage of.\n\nIf you’re into a little climb + payoff, River Place is the “earned it” hike (and then you can justify tacos after). McKinney Falls is more mellow, but it’s a great wander and the water + limestone is always a win.\n\nHave you done Mount Bonnell at sunset yet, or are you more into longer trails than quick view spots?"
+      },
+      {
+        "speaker": "user",
+        "message": "I haven't done Mount Bonnell yet, but it's on my list! I'm usually drawn to longer trails, but a classic sunset view sounds perfect for a weeknight. Do you have a favorite spot there to watch from?"
+      },
+      {
+        "speaker": "bot",
+        "message": "Mount Bonnell is such a solid weeknight move. I usually go all the way up to the main overlook (the big open area by the railing) — it’s the classic view for a reason, and you can see the river bend + the 360 bridge area when the light hits right.\n\nIf you want it a little quieter, there’s a smaller spot off to the side if you keep walking a bit past the main crowd (it’s not “secret,” just less obvious), but the main overlook is my favorite for sunset.\n\nIf you’re down, I’m happy to do a Bonnell sunset + post-hike tacos/beer sometime. What nights are usually best for you?"
+      },
+      {
+        "speaker": "user",
+        "message": "That sounds perfect—I'm free most weeknights after 6. I'd love to finally check it out with someone who knows the good spots. Should we plan for next week?"
+      },
+      {
+        "speaker": "bot",
+        "message": "Yeah, next week works for me. How about **Tuesday or Wednesday**?\n\nWe could meet at the **Mount Bonnell lot around 6:30** (gives us time to get up there and grab a good spot before the best light), then do **tacos or a beer** after—**Torchy’s** is easy, or I’m always down for **Pinthouse** if you want craft beer.\n\nWhich night do you prefer, and are you more tacos or beer-after-hike?"
+      },
+      {
+        "speaker": "user",
+        "message": "Tuesday works for me! I'm definitely more of a tacos-after-hike person, so Torchy's sounds perfect. Should I bring anything, or just meet you at the lot?"
+      },
+      {
+        "speaker": "bot",
+        "message": "Tuesday it is. Let’s do **6:30 at the Mount Bonnell parking lot**—I’ll aim to be there a few minutes early.\n\nYou don’t need much: **water**, **comfortable shoes** (those steps can be a little slick), and maybe **bug spray** if mosquitoes are feeling spicy. If you’ve got sunglasses/a hat, it’s nice for the walk up before the sun drops.\n\nAfter sunset we’ll roll to **Torchy’s**—any go-to order, or are you a “try something new every time” person? Also, want me to text you day-of in case parking’s weird?"
+      }
+    ],
+    "ground_truth": {
+      "personality": {
+        "big_five": {
+          "openness": 0.7,
+          "conscientiousness": 0.75,
+          "extraversion": 0.55,
+          "agreeableness": 0.7,
+          "neuroticism": 0.35
+        },
+        "mbti": "INTP"
+      },
+      "demographics": {
+        "age": 28,
+        "sex": "m",
+        "job": "software engineer"
+      },
+      "relationship": {
+        "rel_type": "love",
+        "rel_status": "acquaintance"
+      }
+    },
+    "n_turns": 10
+  },
+  {
+    "conversation_id": "bot_2_conv0",
+    "bot_id": "bot_2",
+    "dialogue": [
+      {
+        "speaker": "user",
+        "message": "Hey! I saw you're into hiking too - any favorite trails around here? I'm always looking for new spots to explore."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "That's awesome! I actually just did the Eagle Ridge Trail last weekend - the views were incredible. Have you been up there yet?"
+      },
+      {
+        "speaker": "bot",
+        "message": "I haven’t made it up to Eagle Ridge yet, but it’s officially moving to the top of my list—those views sound so worth it. How tough was it (steepness/length), and was it pretty crowded when you went?\n\nIf you’re looking for other ideas nearby, I’m a fan of trails with a little payoff at the end—either a lookout, water, or a quiet loop. What kind of hikes do you usually enjoy: more challenging climbs, or more mellow scenic walks?"
+      },
+      {
+        "speaker": "user",
+        "message": "It was a solid workout - about 6 miles round trip with some steep sections, but totally doable. It wasn't too crowded, maybe because I went early. I'm definitely into a mix - I love a good challenge, but sometimes a peaceful forest walk is perfect too."
+      },
+      {
+        "speaker": "bot",
+        "message": "That sounds like the perfect kind of hike—6 miles with a few steep pushes and a big view at the end is my sweet spot too. Going early is such a cheat code for avoiding crowds.\n\nIf you’re up for another “solid workout with payoff,” do you know if there are any ridge/overlook trails nearby with a loop option? I love when you can make it a loop instead of out-and-back.\n\nAnd for the peaceful forest-walk days, I’m always hunting for trails that feel quiet even when they’re popular—think shaded, lots of trees, maybe a creek. What’s your ideal vibe on those days: water sounds, big pines, wildflowers, or just total solitude?"
+      },
+      {
+        "speaker": "user",
+        "message": "I love a good loop too - there's a trail called Pine Ridge Loop that's about 7 miles and has a great overlook halfway through. For quiet forest walks, I'm a sucker for a trail with a creek running alongside it. The sound of water is so relaxing."
+      },
+      {
+        "speaker": "bot",
+        "message": "Pine Ridge Loop sounds exactly up my alley—7 miles, a loop, and an overlook halfway is such a nice “built-in reward.” Do you remember if the overlook is more of a wide-open viewpoint or a smaller tucked-away spot? And how’s the footing on that trail—pretty smooth, or more roots/rocks?\n\nAnd I’m with you on creekside trails. There’s something about that steady water sound that just drops your stress level a few notches. When you do those quieter walks, do you usually stop for a little sit/snack by the water, or keep a steady pace the whole time?"
+      },
+      {
+        "speaker": "user",
+        "message": "I usually find a good rock to sit on for a snack break—it’s the best part. The overlook on Pine Ridge is pretty wide open, actually, with a big rocky ledge. The footing is decent, but there are some rooty sections, so good shoes help."
+      },
+      {
+        "speaker": "bot",
+        "message": "That sounds so perfect—wide-open rocky ledge + a snack break is basically the ideal hiking moment. I’m picturing that “legs dangling, breathe for a minute, take it all in” kind of stop.\n\nRooty sections don’t bother me as long as I’m in grippy shoes, so Pine Ridge Loop is officially on my list. Do you remember if there are any spots where it gets muddy or slick (like after rain), or is it mostly pretty dry?\n\nAlso, what’s your go-to trail snack when you do the rock-by-the-creek break—something simple like trail mix, or are you a “real food” person (sandwich, fruit, etc.)?"
+      }
+    ],
+    "ground_truth": {
+      "personality": {
+        "big_five": {
+          "openness": 0.65,
+          "conscientiousness": 0.85,
+          "extraversion": 0.6,
+          "agreeableness": 0.9,
+          "neuroticism": 0.4
+        },
+        "mbti": "ISFJ"
+      },
+      "demographics": {
+        "age": 35,
+        "sex": "f",
+        "job": "nurse practitioner"
+      },
+      "relationship": {
+        "rel_type": "love",
+        "rel_status": "acquaintance"
+      }
+    },
+    "n_turns": 10
+  },
+  {
+    "conversation_id": "bot_3_conv0",
+    "bot_id": "bot_3",
+    "dialogue": [
+      {
+        "speaker": "user",
+        "message": "Hey! I saw you're into hiking too - any favorite trails around here? Your dog in the second photo is adorable, by the way."
+      },
+      {
+        "speaker": "bot",
+        "message": "Yeah, I’m definitely a weekend-trail guy when I can sneak away. If you’re looking for something close and easy to jump into, I’m a big fan of the East Palisades trail by the Chattahoochee—great views, solid workout, and the pup loves it. Sweetwater Creek is another go-to if you want a little more scenery and a change of pace.\n\nAnd thank you—he knows he’s cute and fully uses it to get extra treats.\n\nWhat part of town are you in? I can recommend something nearby (and tell me what you’re into—more “easy scenic stroll” or “let’s earn brunch”)?"
+      },
+      {
+        "speaker": "user",
+        "message": "I'm over in Midtown, so East Palisades is super close! Definitely more of a \"earn brunch\" type—I like a trail with some good elevation. Your dog sounds like a total character, by the way. What's his name?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "His name is Finn, and he's a total goofball—always trying to make friends with every squirrel we pass. \n\nIf you're up for a challenge, the hike up to the overlook at East Palisades has a couple steep sections that'll definitely earn you brunch. Have you checked out Kennesaw Mountain yet? That's another solid option for elevation."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "Finn is such a great name for a dog! I haven't done Kennesaw Mountain yet, but it's been on my list. Maybe I'll try that one this weekend if the weather holds."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "Nice! The views from the top are supposed to be amazing. If you do go, let me know how Finn handles the climb—I feel like he'd be leading the charge."
+      },
+      {
+        "speaker": "bot",
+        "message": "Love it—Kennesaw is a perfect “weekend win” hike. If you go, aim for an earlier start so it’s cooler and parking’s easier. The main trail up to the summit is a solid workout but totally doable, and the payoff view is legit.\n\nFor Finn: bring a little extra water and maybe a quick snack break halfway—those “make friends with every squirrel” types tend to burn fuel fast.\n\nWhat time are you thinking, and are you doing the summit trail or just a loop to get a feel for it?"
+      }
+    ],
+    "ground_truth": {
+      "personality": {
+        "big_five": {
+          "openness": 0.75,
+          "conscientiousness": 0.7,
+          "extraversion": 0.85,
+          "agreeableness": 0.65,
+          "neuroticism": 0.3
+        },
+        "mbti": "ENTJ"
+      },
+      "demographics": {
+        "age": 38,
+        "sex": "m",
+        "job": "marketing director"
+      },
+      "relationship": {
+        "rel_type": "love",
+        "rel_status": "acquaintance"
+      }
+    },
+    "n_turns": 10
+  },
+  {
+    "conversation_id": "bot_4_conv0",
+    "bot_id": "bot_4",
+    "dialogue": [
+      {
+        "speaker": "user",
+        "message": "Hey! I saw you're into hiking too - any favorite trails around here? Your photos from that summit look amazing."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "Thanks! That one was actually taken on the Skyline Ridge Trail. It's a bit of a grind but the 360-degree view at the top is totally worth it. Have you done much hiking in the area?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "I've done a few of the easier ones like the Pine Creek Loop, but I've been wanting to tackle something with a real payoff like Skyline Ridge. Is it pretty well-marked?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "It's well-marked for the most part, though there's one rocky section where the trail gets a little faint. I'd be happy to show you the route sometime if you want a hiking buddy!"
+      },
+      {
+        "speaker": "bot",
+        "message": "That’s really generous of you to offer—thank you. I might take you up on that.\n\nBefore I do, can I ask a couple practical questions about that faint rocky section? Like, is it a “slow down and look for cairns” kind of spot, or more of a “you could accidentally wander onto a sketchy scramble” situation? And do you think it’s doable for someone who’s comfortable hiking but not trying to do anything technical?\n\nIf we did go, I’d also love to know what time you usually start and what you like to bring—especially water and layers. I’m a big fan of being overprepared rather than heroic."
+      },
+      {
+        "speaker": "user",
+        "message": "It's definitely more of the \"slow down for cairns\" type, no scrambling required. I usually start around 7am to beat the heat and bring at least 3 liters of water and a windbreaker—the summit can get breezy. Overprepared is the best way to be!"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      }
+    ],
+    "ground_truth": {
+      "personality": {
+        "big_five": {
+          "openness": 0.8,
+          "conscientiousness": 0.8,
+          "extraversion": 0.5,
+          "agreeableness": 0.85,
+          "neuroticism": 0.45
+        },
+        "mbti": "INFJ"
+      },
+      "demographics": {
+        "age": 46,
+        "sex": "f",
+        "job": "high school teacher"
+      },
+      "relationship": {
+        "rel_type": "love",
+        "rel_status": "acquaintance"
+      }
+    },
+    "n_turns": 10
+  },
+  {
+    "conversation_id": "bot_5_conv0",
+    "bot_id": "bot_5",
+    "dialogue": [
+      {
+        "speaker": "user",
+        "message": "Hey! I saw you're into hiking too - any favorite trails around here? I'm always looking for new spots to explore."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "That's awesome! I've actually been wanting to check out the Pine Ridge Loop - have you done that one? I've heard the views are incredible."
+      },
+      {
+        "speaker": "bot",
+        "message": "I have—Pine Ridge Loop is a solid choice, especially if you catch it on a clear day. The ridgeline sections open up nicely and the light can be great in the late afternoon (I’ve brought a camera along more than once).\n\nA couple quick notes: it can get busy on weekends, and some stretches are pretty exposed, so I usually go early and bring an extra layer even if it feels warm at the trailhead. Are you thinking of doing it as a day hike, or making a longer outing of it?"
+      },
+      {
+        "speaker": "user",
+        "message": "Definitely a day hike for me - I'm not quite set up for overnight trips yet. But going early sounds like a great tip. Maybe I'll aim for a weekday to avoid the crowds."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "Smart move on the weekday plan. I’m actually free this Thursday morning if you’d want a hiking buddy? I could bring my camera and show you that good light spot."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "That sounds perfect! I've been meaning to get out on a weekday. Want to meet at the trailhead around 8?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      }
+    ],
+    "ground_truth": {
+      "personality": {
+        "big_five": {
+          "openness": 0.85,
+          "conscientiousness": 0.85,
+          "extraversion": 0.45,
+          "agreeableness": 0.7,
+          "neuroticism": 0.4
+        },
+        "mbti": "INTJ"
+      },
+      "demographics": {
+        "age": 52,
+        "sex": "m",
+        "job": "architect"
+      },
+      "relationship": {
+        "rel_type": "love",
+        "rel_status": "acquaintance"
+      }
+    },
+    "n_turns": 10
+  },
+  {
+    "conversation_id": "bot_6_conv0",
+    "bot_id": "bot_6",
+    "dialogue": [
+      {
+        "speaker": "user",
+        "message": "Hey, I saw you're into hiking too! What's your favorite trail around here?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "Oh man, that's a tough one. I'd probably say the loop at Pine Ridge—the view from the summit is unreal, especially at sunrise. What about you?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "Nice choice! I actually haven't done Pine Ridge at sunrise yet, but now I'm adding it to my list. I'm a big fan of the River Canyon trail—the waterfalls along the way are pretty amazing."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "That's a great one too! I love the sound of the water along that trail. Maybe we could check out Pine Ridge together sometime?"
+      },
+      {
+        "speaker": "bot",
+        "message": "I’d really like that. Pine Ridge at sunrise has a kind of hush to it that makes the whole world feel newly made—like the first quiet measures of a symphony before everything swells.\n\nIf we do it, I’d suggest an early start and a thermos of something warm. And since you love River Canyon, we could make a little day of it sometime: sunrise at Pine Ridge, then an easy, waterfall-paced walk later on when the light hits the water just right.\n\nAre you more of a “steady pace, soak in the view” hiker, or do you like to move quickly and linger at the top?"
+      },
+      {
+        "speaker": "user",
+        "message": "That sounds absolutely perfect. I'm definitely a \"steady pace, soak in the view\" person—I'm the one stopping to take pictures of weird mushrooms and interesting rocks. A whole day of hiking sounds amazing."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      }
+    ],
+    "ground_truth": {
+      "personality": {
+        "big_five": {
+          "openness": 0.75,
+          "conscientiousness": 0.8,
+          "extraversion": 0.4,
+          "agreeableness": 0.9,
+          "neuroticism": 0.35
+        },
+        "mbti": "ISFP"
+      },
+      "demographics": {
+        "age": 61,
+        "sex": "f",
+        "job": "retired librarian"
+      },
+      "relationship": {
+        "rel_type": "love",
+        "rel_status": "acquaintance"
+      }
+    },
+    "n_turns": 10
+  },
+  {
+    "conversation_id": "bot_7_conv0",
+    "bot_id": "bot_7",
+    "dialogue": [
+      {
+        "speaker": "user",
+        "message": "Hey! I saw you're into hiking too - any favorite trails around here? Your dog in the second photo is adorable, by the way."
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "Thanks! That's Charlie - he's my adventure buddy. For trails, I really love the waterfall loop at Pine Ridge Park. It's got great views without being too intense. Do you hike with your dog too?"
+      },
+      {
+        "speaker": "bot",
+        "message": "I do, when I can—my old lab mix still thinks he’s a puppy the second we hit a trail. Pine Ridge’s waterfall loop sounds right up our alley.\n\nHow’s Charlie on the trail—does he stay close or try to lead the expedition? And are you usually looking for easy scenic loops, or do you like the longer climbs too?"
+      },
+      {
+        "speaker": "user",
+        "message": "Charlie definitely thinks he's the expedition leader—I'm just there to carry the water and treats. I'm up for either, honestly! I love a good long climb for the challenge, but sometimes a chill scenic loop is just what you need."
+      },
+      {
+        "speaker": "bot",
+        "message": "That sounds exactly like my lab—if there’s a fork in the trail, he picks a direction like he’s got a map.\n\nIf you’re up for both styles, I’d do it this way: long climb when you’ve got the time and decent weather, and keep a couple of “easy wins” in your back pocket for after-work or lazy weekends. Around Denver, I’m partial to spots where you get payoff views without having to grind the whole day.\n\nWhat’s your ideal outing with Charlie—more like 3–5 miles with a view and back to the car, or a longer 8–12 mile kind of day? And is he good with other dogs on busy trails?"
+      },
+      {
+        "speaker": "user",
+        "message": "I’d say 5-8 miles is our sweet spot—enough to feel like a real adventure but not so long that Charlie runs out of steam. He’s great with other dogs, just gets a little too excited to say hi sometimes. Have you found any good dog-friendly spots with a solid view payoff?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      },
+      {
+        "speaker": "user",
+        "message": "For sure—there's a spot called Elk Meadow that's about 6 miles round trip and ends at this open ridge with a killer view of the foothills. It's usually not too crowded, and the dogs can roam a bit off-leash in certain sections. Have you tried that one?"
+      },
+      {
+        "speaker": "bot",
+        "message": ""
+      }
+    ],
+    "ground_truth": {
+      "personality": {
+        "big_five": {
+          "openness": 0.7,
+          "conscientiousness": 0.85,
+          "extraversion": 0.5,
+          "agreeableness": 0.75,
+          "neuroticism": 0.3
+        },
+        "mbti": "ISTJ"
+      },
+      "demographics": {
+        "age": 65,
+        "sex": "m",
+        "job": "retired engineer"
+      },
+      "relationship": {
+        "rel_type": "love",
+        "rel_status": "acquaintance"
+      }
+    },
+    "n_turns": 10
+  }
+]

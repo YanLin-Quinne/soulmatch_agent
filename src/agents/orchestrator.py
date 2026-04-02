@@ -25,6 +25,9 @@ from src.agents.conversation_sentiment_agent import ConversationSentimentAgent
 from src.agents.conversation_hint_agent import ConversationHintAgent
 from src.agents.digital_twin_agent import DigitalTwinAgent
 from src.agents.love_prediction_agent import LovePredictionAgent
+from src.persistence.session_store import SessionStore
+from src.agents.hooks import HookRegistry, HookDeniedError
+from src.agents.hooks_builtin import LoggingHook, CostTrackingHook, ScamRiskGateHook
 
 
 class OrchestratorAgent:
@@ -49,7 +52,8 @@ class OrchestratorAgent:
         self.current_bot: Optional[PersonaAgent] = None
 
         self.feature_agent = FeaturePredictionAgent(user_id)
-        self.memory_manager = MemoryManager(user_id, use_three_layer=True)
+        self.session_store = SessionStore()
+        self.memory_manager = MemoryManager(user_id, use_three_layer=True, session_store=self.session_store)
         self.emotion_agent = EmotionAgent()
         self.scam_agent = ScamDetectionAgent(use_semantic=True)
         self.question_agent = QuestionStrategyAgent()
@@ -69,6 +73,14 @@ class OrchestratorAgent:
         register_builtin_skills()
 
         self.ctx = AgentContext(user_id=user_id)
+
+        # Hook system
+        self.hook_registry = HookRegistry()
+        self.hook_registry.register(LoggingHook())
+        self._cost_hook = CostTrackingHook()
+        self.hook_registry.register(self._cost_hook)
+        self.hook_registry.register(ScamRiskGateHook())
+
         self._pending_relationship_turn = False
 
         logger.info(f"Orchestrator initialized for user {user_id}")
@@ -82,7 +94,7 @@ class OrchestratorAgent:
         self.ctx = AgentContext(user_id=self.user_id)
         self.state_machine.reset()
         self.current_bot = None
-        self.memory_manager = MemoryManager(self.user_id, use_three_layer=True)
+        self.memory_manager = MemoryManager(self.user_id, use_three_layer=True, session_store=self.session_store)
 
         bot_summaries = self.bot_pool.get_agent_summaries()
         if not bot_summaries:
@@ -170,9 +182,11 @@ class OrchestratorAgent:
         # --- Phase 2: feature update (benefits from emotion) ---
         if "feature_update" in actions:
             try:
-                result = self._update_features()
+                result = await self._run_with_hooks("feature_update", self._update_features)
                 response["feature_update"] = result
                 self.state_machine.handle_feature_updated()
+            except HookDeniedError as e:
+                logger.info(f"[Orchestrator] {e}")
             except Exception as e:
                 logger.error(f"[Orchestrator] Feature update failed: {e}")
 
@@ -211,7 +225,9 @@ class OrchestratorAgent:
 
         # --- Phase 3: question strategy (needs features) ---
         try:
-            self._update_question_strategy()
+            await self._run_with_hooks("question_strategy", self._update_question_strategy)
+        except HookDeniedError as e:
+            logger.info(f"[Orchestrator] {e}")
         except Exception as e:
             logger.error(f"[Orchestrator] Question strategy update failed: {e}")
 
@@ -269,7 +285,7 @@ class OrchestratorAgent:
         # --- Phase 4: bot response (needs everything) ---
         if "bot_response" in actions:
             try:
-                bot_text = self._generate_bot_response()
+                bot_text = await self._run_with_hooks("bot_response", self._generate_bot_response)
                 response["bot_message"] = bot_text
                 self.ctx.add_to_history("bot", bot_text)
                 self.memory_manager.add_conversation_turn("bot", bot_text)
@@ -280,6 +296,10 @@ class OrchestratorAgent:
                 base_delay = min(char_count * 0.005, 0.5)  # ~5ms per char, cap 0.5s
                 self.ctx.reply_delay_seconds = round(base_delay, 1)
                 response["reply_delay"] = self.ctx.reply_delay_seconds
+            except HookDeniedError as e:
+                logger.info(f"[Orchestrator] {e}")
+                response["bot_message"] = "I need to take a careful pause here. Could you tell me more about yourself?"
+                response["scam_gate_triggered"] = True
             except Exception as e:
                 logger.error(f"[Orchestrator] Bot response generation failed: {e}")
                 response["bot_message"] = "Sorry, I'm having a moment. Could you say that again?"
@@ -288,9 +308,11 @@ class OrchestratorAgent:
         # --- Phase 5: memory store ---
         if "memory_update" in actions:
             try:
-                mem_result = self._update_memory()
+                mem_result = await self._run_with_hooks("memory_store", self._update_memory)
                 response["memory_update"] = mem_result
                 self.state_machine.handle_memory_updated()
+            except HookDeniedError as e:
+                logger.info(f"[Orchestrator] {e}")
             except Exception as e:
                 logger.error(f"[Orchestrator] Memory update failed: {e}")
 
@@ -323,6 +345,11 @@ class OrchestratorAgent:
             "avg_feature_confidence": self.feature_agent._compute_overall_confidence(),
             "perception_accuracy": self.feature_agent.compute_perception_accuracy().get("overall_accuracy", 0.0),
         }
+
+        # Hook cost report
+        if self._cost_hook.per_agent_cost:
+            response["agent_costs"] = self._cost_hook.get_cost_report()
+
         return response
 
     async def run_relationship_prediction(self) -> Dict[str, Any]:
@@ -390,6 +417,15 @@ class OrchestratorAgent:
         self._pending_relationship_turn = False
         return result
 
+    async def _run_with_hooks(self, agent_name: str, fn) -> Any:
+        """Execute an agent phase wrapped in pre/post hooks."""
+        pre_result = await self.hook_registry.run_pre_hooks(agent_name, self.ctx)
+        if pre_result.action.value == "deny":
+            raise HookDeniedError(agent_name, pre_result.reason)
+        result = fn() if not asyncio.iscoroutinefunction(fn) else await fn()
+        await self.hook_registry.run_post_hooks(agent_name, self.ctx, result)
+        return result
+
     # ------------------------------------------------------------------
     # Pipeline helpers
     # ------------------------------------------------------------------
@@ -437,6 +473,18 @@ class OrchestratorAgent:
         self.ctx.predicted_features = result.get("features", {})
         self.ctx.feature_confidences = result.get("confidences", {})
         self.ctx.low_confidence_features = result.get("low_confidence", [])
+
+        # Persist feature snapshot to DB
+        try:
+            self.session_store.add_feature_history(
+                session_id=self.ctx.user_id,
+                turn_number=self.ctx.turn_count,
+                features=self.ctx.predicted_features,
+                confidences=self.ctx.feature_confidences,
+                bayesian_updates=result.get("bayesian_updates"),
+            )
+        except Exception as e:
+            logger.error(f"[Orchestrator] Failed to persist feature history: {e}")
 
         # Perception accuracy tracking
         accuracy = self.feature_agent.compute_perception_accuracy()

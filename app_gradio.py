@@ -1,4 +1,8 @@
 """
+Alternative Gradio interface for HuggingFace Spaces deployment.
+Primary interface: src/api/main.py (FastAPI + React frontend)
+This file provides a simpler chat-only UI for demo purposes.
+
 SoulMatch Agent - Professional Demo UI
 EMNLP 2025 System Demonstration
 """

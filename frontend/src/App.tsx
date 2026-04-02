@@ -10,7 +10,7 @@ import { PERSONAS, Persona } from './data/personas';
 
 const WS_BASE = window.location.protocol === 'https:'
   ? `wss://${window.location.host}`
-  : 'ws://localhost:7860';
+  : `ws://${window.location.hostname}:${window.location.port || '7860'}`;
 
 interface Character {
   id: string;

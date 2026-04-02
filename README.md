@@ -14,7 +14,7 @@ license: mit
 
 A multi-agent orchestration system with **12 collaborative agents**, **Bayesian feature inference**, **conformal uncertainty quantification**, and **three-layer cognitive memory**. This is not a single-LLM chatbot — agents run in parallel, share context through a blackboard, and adaptively steer conversations based on statistical uncertainty.
 
-![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue)
+![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue)
 ![License MIT](https://img.shields.io/badge/License-MIT-green)
 ![HuggingFace Spaces](https://img.shields.io/badge/%F0%9F%A4%97-HuggingFace%20Spaces-yellow)
 
@@ -186,7 +186,7 @@ The `QuestionStrategyAgent` receives the list of low-confidence features and gen
 
 | Component | Technology |
 |-----------|-----------|
-| Backend | Python 3.11, FastAPI, WebSocket, asyncio |
+| Backend | Python 3.12, FastAPI, WebSocket, asyncio |
 | Frontend | React 18, TypeScript, Vite |
 | LLM Providers | Anthropic (Claude), OpenAI (GPT), Google (Gemini), Alibaba Cloud (Qwen), DeepSeek |
 | Vector Store | ChromaDB |

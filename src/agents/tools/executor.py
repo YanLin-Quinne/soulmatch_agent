@@ -8,7 +8,7 @@ from typing import Any, Optional
 
 from loguru import logger
 
-from src.agents.tools.registry import ToolRegistry, ToolResult, tool_registry
+from src.agents.tools.registry import ToolRegistry, ToolResult, tool_registry, PermissionLevel
 from src.agents.llm_router import router, AgentRole, Provider, MODELS, _Clients, _provider_available
 
 
@@ -23,9 +23,11 @@ class ToolExecutor:
     All execution is synchronous — safe to call from FastAPI sync handlers.
     """
 
-    def __init__(self, registry: Optional[ToolRegistry] = None, max_iterations: int = 3):
+    def __init__(self, registry: Optional[ToolRegistry] = None, max_iterations: int = 3,
+                 allowed_permission: Optional[PermissionLevel] = None):
         self.registry = registry or tool_registry
         self.max_iterations = max_iterations
+        self.allowed_permission = allowed_permission  # None = allow all (backward compat)
 
     def chat_with_tools(
         self,
@@ -165,6 +167,10 @@ class ToolExecutor:
             return ToolResult(success=False, error=f"Unknown tool: {name}")
         if not tool.handler:
             return ToolResult(success=False, error=f"Tool '{name}' has no handler")
+        # Permission gate
+        if self.allowed_permission is not None and tool.permission > self.allowed_permission:
+            logger.warning(f"Permission denied: tool '{name}' requires {tool.permission.name}, allowed up to {self.allowed_permission.name}")
+            return ToolResult(success=False, error=f"Permission denied: '{name}' requires {tool.permission.name}")
         try:
             result = tool.handler(**args)
             return ToolResult(success=True, output=result)

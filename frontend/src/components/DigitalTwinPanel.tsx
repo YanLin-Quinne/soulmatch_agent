@@ -218,67 +218,72 @@ export default function DigitalTwinPanel({
         </div>
       </div>
 
-      {/* Perception Comparison */}
-      {!showPerception ? (
-        <button
-          onClick={() => setShowPerception(true)}
-          style={{
-            padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)',
-            background: 'transparent', color: 'var(--text-muted)', fontSize: 12,
-            cursor: 'pointer', transition: 'all 0.2s',
-          }}
-          onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-          onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-        >
-          Compare Perception
-        </button>
-      ) : (
-        <div style={{
-          background: 'var(--bg-hover)', borderRadius: 10, padding: 12,
-          border: '1px solid var(--border)',
-        }}>
-          <div style={sectionLabel}>Your Self-Perception (Big Five)</div>
-          <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>
-            Slide each trait to where you think you are, then compare with the AI's prediction.
-          </p>
-          {BIG_FIVE_DIMS.map(dim => (
-            <div key={dim.key} className="perception-slider" style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
-                <span style={{ color: 'var(--text-muted)' }}>{dim.label}</span>
-                <span style={{ color: 'var(--accent)' }}>{(sliders[dim.key] * 100).toFixed(0)}%</span>
+      {/* TODO: Re-enable when Digital Twin comparison backend logic is complete */}
+      {false && (
+        <>
+          {/* Perception Comparison */}
+          {!showPerception ? (
+            <button
+              onClick={() => setShowPerception(true)}
+              style={{
+                padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)',
+                background: 'transparent', color: 'var(--text-muted)', fontSize: 12,
+                cursor: 'pointer', transition: 'all 0.2s',
+              }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            >
+              Compare Perception
+            </button>
+          ) : (
+            <div style={{
+              background: 'var(--bg-hover)', borderRadius: 10, padding: 12,
+              border: '1px solid var(--border)',
+            }}>
+              <div style={sectionLabel}>Your Self-Perception (Big Five)</div>
+              <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>
+                Slide each trait to where you think you are, then compare with the AI's prediction.
+              </p>
+              {BIG_FIVE_DIMS.map(dim => (
+                <div key={dim.key} className="perception-slider" style={{ marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>{dim.label}</span>
+                    <span style={{ color: 'var(--accent)' }}>{(sliders[dim.key] * 100).toFixed(0)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0} max={1} step={0.01}
+                    value={sliders[dim.key]}
+                    onChange={e => setSliders(prev => ({ ...prev, [dim.key]: parseFloat(e.target.value) }))}
+                    style={{ width: '100%', accentColor: 'var(--accent)' }}
+                  />
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button
+                  onClick={handleCompare}
+                  style={{
+                    flex: 1, padding: '7px 0', borderRadius: 6, border: 'none',
+                    background: 'var(--gradient-1)', color: '#fff', fontSize: 12,
+                    fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  Compare
+                </button>
+                <button
+                  onClick={() => setShowPerception(false)}
+                  style={{
+                    padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)',
+                    background: 'transparent', color: 'var(--text-dim)', fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
               </div>
-              <input
-                type="range"
-                min={0} max={1} step={0.01}
-                value={sliders[dim.key]}
-                onChange={e => setSliders(prev => ({ ...prev, [dim.key]: parseFloat(e.target.value) }))}
-                style={{ width: '100%', accentColor: 'var(--accent)' }}
-              />
             </div>
-          ))}
-          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            <button
-              onClick={handleCompare}
-              style={{
-                flex: 1, padding: '7px 0', borderRadius: 6, border: 'none',
-                background: 'var(--gradient-1)', color: '#fff', fontSize: 12,
-                fontWeight: 600, cursor: 'pointer',
-              }}
-            >
-              Compare
-            </button>
-            <button
-              onClick={() => setShowPerception(false)}
-              style={{
-                padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)',
-                background: 'transparent', color: 'var(--text-dim)', fontSize: 12,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   );

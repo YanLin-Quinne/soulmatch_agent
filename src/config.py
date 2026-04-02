@@ -1,5 +1,6 @@
 """Configuration management"""
 
+import os
 from pathlib import Path
 from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
     # API Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    cors_origins: str = "http://localhost:3000,http://localhost:5173"
+    cors_origins: str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:7860")
 
     # Multi-Agent Discussion
     enable_discussion_room: bool = True  # 启用真正的多智能体辩论（研究模式）

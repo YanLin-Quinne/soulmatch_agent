@@ -4,8 +4,25 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass, field
+from enum import IntEnum
 from typing import Any, Callable, Optional
 from loguru import logger
+
+
+class PermissionLevel(IntEnum):
+    """Tool permission levels, ordered from least to most dangerous."""
+    READ_ONLY = 0       # 只读操作，无副作用
+    CONTEXT_WRITE = 1   # 写入 AgentContext，不触及外部
+    EXTERNAL_CALL = 2   # 调用外部 API/网络
+    DANGEROUS = 3       # 高风险操作
+
+
+@dataclass
+class ToolContext:
+    """Injectable context replacing module-level _tool_context dict."""
+    ctx: Any = None
+    memory_manager: Any = None
+    feature_agent: Any = None
 
 
 @dataclass
@@ -39,6 +56,7 @@ class Tool:
     parameters: list[ToolParameter] = field(default_factory=list)
     handler: Optional[Callable] = None
     category: str = "general"  # "web", "data", "dating", "general"
+    permission: PermissionLevel = PermissionLevel.READ_ONLY
 
     def to_schema(self) -> dict:
         """Convert to JSON schema format compatible with Claude/GPT tool_use."""
@@ -90,14 +108,17 @@ class ToolRegistry:
     def get(self, name: str) -> Optional[Tool]:
         return self._tools.get(name)
 
-    def list_tools(self, category: Optional[str] = None) -> list[Tool]:
+    def list_tools(self, category: Optional[str] = None, max_permission: Optional[PermissionLevel] = None) -> list[Tool]:
+        tools = list(self._tools.values())
         if category:
-            return [t for t in self._tools.values() if t.category == category]
-        return list(self._tools.values())
+            tools = [t for t in tools if t.category == category]
+        if max_permission is not None:
+            tools = [t for t in tools if t.permission <= max_permission]
+        return tools
 
-    def get_schemas(self, category: Optional[str] = None) -> list[dict]:
+    def get_schemas(self, category: Optional[str] = None, max_permission: Optional[PermissionLevel] = None) -> list[dict]:
         """Get all tool schemas for passing to LLM."""
-        return [t.to_schema() for t in self.list_tools(category)]
+        return [t.to_schema() for t in self.list_tools(category, max_permission)]
 
     def __contains__(self, name: str) -> bool:
         return name in self._tools

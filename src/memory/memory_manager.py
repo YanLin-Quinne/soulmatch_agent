@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class MemoryManager:
     """Memory Manager Agent using LLMRouter with Three-Layer Memory System."""
 
-    def __init__(self, user_id: str, db_client: Optional[ChromaDBClient] = None, use_llm: bool = True, use_three_layer: bool = True):
+    def __init__(self, user_id: str, db_client: Optional[ChromaDBClient] = None, use_llm: bool = True, use_three_layer: bool = True, session_store=None):
         self.user_id = user_id
         self.db_client = db_client or ChromaDBClient()
         self.use_llm = use_llm
@@ -33,7 +33,7 @@ class MemoryManager:
         self.three_layer_memory: Optional['ThreeLayerMemory'] = None
         if use_three_layer:
             from src.memory.three_layer_memory import ThreeLayerMemory
-            self.three_layer_memory = ThreeLayerMemory(llm_router=router)
+            self.three_layer_memory = ThreeLayerMemory(llm_router=router, user_id=user_id, session_store=session_store)
 
     def add_conversation_turn(self, speaker: str, message: str):
         self.conversation_history.append({"turn": self.current_turn, "speaker": speaker, "message": message})

@@ -67,11 +67,12 @@ class ThreeLayerMemory:
     3. 防幻觉：严格grounding + 一致性校验
     """
 
-    def __init__(self, llm_router, working_memory_size: int = 20, user_id: str = "default"):
+    def __init__(self, llm_router, working_memory_size: int = 20, user_id: str = "default", session_store=None):
         from src.agents.llm_router import LLMRouter
         self.llm: LLMRouter = llm_router
         self.working_memory_size = working_memory_size
         self.user_id = user_id
+        self.session_store = session_store  # Optional[SessionStore] for DB persistence
 
         # Layer 1: Working Memory (FIFO队列)
         self.working_memory: List[WorkingMemoryItem] = []
@@ -201,6 +202,26 @@ IMPORTANT:
 
             self.episodic_memory.append(episode)
             logger.info(f"[ThreeLayerMemory] Compressed turns {turn_range[0]}-{turn_range[1]} to episodic memory")
+
+            # Persist to DB if session_store is wired up
+            if self.session_store is not None:
+                try:
+                    self.session_store.add_memory_snapshot(
+                        session_id=self.user_id,
+                        layer="episodic",
+                        content={
+                            "episode_id": episode.episode_id,
+                            "summary": episode.summary,
+                            "key_events": episode.key_events,
+                            "emotion_trend": episode.emotion_trend,
+                            "participants": episode.participants,
+                        },
+                        turn_range_start=turn_range[0],
+                        turn_range_end=turn_range[1],
+                    )
+                    logger.debug(f"[ThreeLayerMemory] Persisted episodic snapshot {episode.episode_id} to DB")
+                except Exception as e:
+                    logger.warning(f"[ThreeLayerMemory] Failed to persist episodic snapshot to DB: {e}")
 
             # 保存原始对话到archive（用于一致性检查）
             self.dialogue_archive[turn_range] = list(oldest_10)
@@ -345,6 +366,25 @@ IMPORTANT:
 
             self.semantic_memory.append(semantic)
             logger.info(f"[ThreeLayerMemory] Reflected on turns {turn_range[0]}-{turn_range[1]} to semantic memory")
+
+            # Persist to DB if session_store is wired up
+            if self.session_store is not None:
+                try:
+                    self.session_store.add_memory_snapshot(
+                        session_id=self.user_id,
+                        layer="semantic",
+                        content={
+                            "reflection_id": semantic.reflection_id,
+                            "reflection": semantic.reflection,
+                            "feature_updates": semantic.feature_updates,
+                            "relationship_insights": semantic.relationship_insights,
+                        },
+                        turn_range_start=turn_range[0],
+                        turn_range_end=turn_range[1],
+                    )
+                    logger.debug(f"[ThreeLayerMemory] Persisted semantic snapshot {semantic.reflection_id} to DB")
+                except Exception as e:
+                    logger.warning(f"[ThreeLayerMemory] Failed to persist semantic snapshot to DB: {e}")
 
         except Exception as e:
             logger.error(f"[ThreeLayerMemory] Semantic reflection failed: {e}")

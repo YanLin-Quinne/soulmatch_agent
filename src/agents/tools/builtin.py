@@ -2,11 +2,11 @@
 
 import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from loguru import logger
 
-from src.agents.tools.registry import Tool, ToolParameter, tool_registry
+from src.agents.tools.registry import Tool, ToolParameter, tool_registry, PermissionLevel, ToolContext
 
 
 # ---------------------------------------------------------------------------
@@ -15,9 +15,12 @@ from src.agents.tools.registry import Tool, ToolParameter, tool_registry
 
 _tool_context: dict[str, Any] = {}
 
+_tool_context_obj: Optional[ToolContext] = None
+
 
 def set_tool_context(ctx=None, memory_manager=None, feature_agent=None):
     """Inject live objects so tool handlers can access conversation state."""
+    global _tool_context_obj
     _tool_context.clear()
     if ctx:
         _tool_context["ctx"] = ctx
@@ -25,11 +28,14 @@ def set_tool_context(ctx=None, memory_manager=None, feature_agent=None):
         _tool_context["memory_manager"] = memory_manager
     if feature_agent:
         _tool_context["feature_agent"] = feature_agent
+    _tool_context_obj = ToolContext(ctx=ctx, memory_manager=memory_manager, feature_agent=feature_agent)
 
 
 def clear_tool_context():
     """Remove references after bot response to prevent leaks."""
+    global _tool_context_obj
     _tool_context.clear()
+    _tool_context_obj = None
 
 
 # ---------------------------------------------------------------------------
@@ -312,6 +318,7 @@ def register_builtin_tools() -> None:
         ],
         handler=get_current_time,
         category="general",
+        permission=PermissionLevel.READ_ONLY,
     ))
 
     tool_registry.register(Tool(
@@ -322,6 +329,7 @@ def register_builtin_tools() -> None:
         ],
         handler=search_web,
         category="web",
+        permission=PermissionLevel.EXTERNAL_CALL,
     ))
 
     tool_registry.register(Tool(
@@ -332,6 +340,7 @@ def register_builtin_tools() -> None:
         ],
         handler=get_weather,
         category="web",
+        permission=PermissionLevel.EXTERNAL_CALL,
     ))
 
     tool_registry.register(Tool(
@@ -343,6 +352,7 @@ def register_builtin_tools() -> None:
         ],
         handler=get_dating_advice,
         category="dating",
+        permission=PermissionLevel.CONTEXT_WRITE,
     ))
 
     tool_registry.register(Tool(
@@ -354,6 +364,7 @@ def register_builtin_tools() -> None:
         ],
         handler=analyze_compatibility,
         category="dating",
+        permission=PermissionLevel.CONTEXT_WRITE,
     ))
 
     tool_registry.register(Tool(
@@ -364,6 +375,7 @@ def register_builtin_tools() -> None:
         ],
         handler=get_conversation_stats,
         category="dating",
+        permission=PermissionLevel.READ_ONLY,
     ))
 
     tool_registry.register(Tool(
@@ -374,6 +386,7 @@ def register_builtin_tools() -> None:
         ],
         handler=recall_memory,
         category="dating",
+        permission=PermissionLevel.READ_ONLY,
     ))
 
     tool_registry.register(Tool(
@@ -385,6 +398,7 @@ def register_builtin_tools() -> None:
         ],
         handler=lookup_user_profile,
         category="dating",
+        permission=PermissionLevel.READ_ONLY,
     ))
 
     logger.info(f"Registered {len(tool_registry)} built-in tools")
