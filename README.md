@@ -18,7 +18,7 @@ A multi-agent orchestration system with **12 collaborative agents**, **Bayesian 
 ![License MIT](https://img.shields.io/badge/License-MIT-green)
 ![HuggingFace Spaces](https://img.shields.io/badge/%F0%9F%A4%97-HuggingFace%20Spaces-yellow)
 
-**Live Demo**: [huggingface.co/spaces/Quinnnnnne/SoulMatch-Agent](https://huggingface.co/spaces/Quinnnnnne/soulmatch-ground)
+**Live Demo**: [huggingface.co/spaces/Quinnnnnne/AI-YOU-TEST](https://huggingface.co/spaces/Quinnnnnne/AI-YOU-TEST)
 
 ---
 

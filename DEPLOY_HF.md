@@ -5,7 +5,7 @@
 1. Go to https://huggingface.co/new-space
 2. Fill in the details:
    - **Owner**: Quinnnnnne
-   - **Space name**: soulmatch-agent
+   - **Space name**: AI-YOU-TEST
    - **License**: MIT
    - **Select the Space SDK**: Docker
    - **Space hardware**: CPU basic (free) or CPU upgrade (faster)
@@ -27,10 +27,10 @@ Configure at least one LLM provider key.
 ## Step 3: Push Code
 
 ```bash
-cd /Users/quinne/Desktop/soulmatch_agent_test
+cd /Users/quinne/soulmatch_agent
 
 # Add HuggingFace remote
-git remote add hf https://huggingface.co/spaces/Quinnnnnne/soulmatch-agent
+git remote add hf https://huggingface.co/spaces/Quinnnnnne/AI-YOU-TEST
 
 # Push code
 git push hf main
@@ -47,7 +47,7 @@ HuggingFace will automatically:
 ## Step 5: Access the Application
 
 Once the build is complete, visit:
-https://huggingface.co/spaces/Quinnnnnne/soulmatch-agent
+https://huggingface.co/spaces/Quinnnnnne/AI-YOU-TEST
 
 ## Troubleshooting
 
@@ -70,14 +70,14 @@ https://huggingface.co/spaces/Quinnnnnne/soulmatch-agent
 
 ```bash
 # Build image
-docker build -t soulmatch-agent .
+docker build -t AI-YOU-TEST .
 
 # Run container
 docker run -p 7860:7860 \
   -e OPENAI_API_KEY=your_key \
   -e GEMINI_API_KEY=your_key \
   -e DEEPSEEK_API_KEY=your_key \
-  soulmatch-agent
+  AI-YOU-TEST
 
 # Access http://localhost:7860
 ```
@@ -107,7 +107,7 @@ Set up an external monitor to ping the Space independently:
 3. Click **Add New Monitor**:
    - **Monitor Type**: HTTP(s)
    - **Friendly Name**: SoulMatch Agent
-   - **URL**: `https://quinnnnnne-soulmatch-agent.hf.space/health`
+   - **URL**: `https://quinnnnnne-AI-YOU-TEST.hf.space/health`
    - **Monitoring Interval**: 5 minutes
 4. Save
 
