@@ -14,7 +14,14 @@ from typing import Dict, List, Any, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from experiments.baselines import DirectPromptingBaseline, CoTBaseline, SelfConsistencyBaseline
+from experiments.baselines import (
+    CoTBaseline,
+    DirectPromptingBaseline,
+    MemGPTBaseline,
+    NoMemoryBaseline,
+    RAGBaseline,
+    SelfConsistencyBaseline,
+)
 from experiments.metrics import (  # noqa: E402
     compute_personality_metrics,
     compute_relationship_metrics,
@@ -216,6 +223,9 @@ def build_methods(method_names: Optional[List[str]] = None) -> Dict[str, Any]:
     all_methods["Direct Prompting"] = DirectPromptingBaseline()
     all_methods["CoT"] = CoTBaseline()
     all_methods["Self-Consistency"] = SelfConsistencyBaseline(n_samples=5)
+    all_methods["MemGPT-style"] = MemGPTBaseline(context_window=10)
+    all_methods["RAG-only"] = RAGBaseline(top_k=5)
+    all_methods["No Memory (last 6)"] = NoMemoryBaseline(last_n_turns=6)
 
     # AI YOU variants
     for name, config in ABLATION_CONFIGS.items():

@@ -21,6 +21,7 @@ build/
 data/raw/
 data/processed/*
 !data/processed/bot_personas.json
+data/benchmarks/
 *.csv
 *.pkl
 *.h5

@@ -6,6 +6,18 @@ from typing import Tuple
 class BayesianUpdater:
     """Bayesian 后验更新器"""
 
+    @staticmethod
+    def _confidence_to_variance(confidence: float) -> float:
+        """Map a [0, 1] confidence score to a small positive variance."""
+        confidence = max(0.0, min(1.0, float(confidence)))
+        return max(1e-3, 1.0 - confidence)
+
+    @staticmethod
+    def _variance_to_confidence(variance: float) -> float:
+        """Map posterior variance back to a bounded confidence score."""
+        variance = max(0.0, float(variance))
+        return max(0.0, min(1.0, 1.0 - variance))
+
     def update_posterior(
         self,
         prior_mean: float,
@@ -41,6 +53,22 @@ class BayesianUpdater:
         posterior_variance = 1.0 / posterior_precision
 
         return posterior_mean, posterior_variance
+
+    def update_feature(
+        self,
+        prior_value: float,
+        prior_confidence: float,
+        observation_value: float,
+        observation_confidence: float,
+    ) -> Tuple[float, float]:
+        """Backward-compatible wrapper used by FeaturePredictionAgent."""
+        posterior_mean, posterior_variance = self.update_posterior(
+            prior_mean=float(prior_value),
+            prior_variance=self._confidence_to_variance(prior_confidence),
+            observation=float(observation_value),
+            observation_variance=self._confidence_to_variance(observation_confidence),
+        )
+        return posterior_mean, self._variance_to_confidence(posterior_variance)
 
 
 # 向后兼容别名
