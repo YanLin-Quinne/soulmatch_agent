@@ -30,6 +30,7 @@ class MemoryManager:
         self.db_client = db_client or ChromaDBClient()
         self.use_llm = use_llm
         self.use_three_layer = use_three_layer
+        self.session_store = session_store
         self.privacy_manager = privacy_manager
         self.conversation_history: List[dict] = []
         self.current_turn: int = 0
@@ -58,10 +59,41 @@ class MemoryManager:
             return self._heuristic_decide(recent_messages)
         return self._llm_decide(recent_messages, current_features)
 
-    def retrieve_relevant_memories(self, query: str, n: int = 5) -> List[str]:
+    def retrieve_wakeup_context(
+        self,
+        features: Optional[dict] = None,
+        confidences: Optional[dict] = None,
+    ) -> List[str]:
+        """Retrieve compact wake-up memory context for most turns."""
+        if not self.three_layer_memory:
+            return []
+
+        resolved_features = features or {}
+        resolved_confidences = confidences or {}
+
+        if not resolved_features and not resolved_confidences:
+            resolved_features, resolved_confidences = self._get_latest_feature_snapshot()
+
+        wakeup_context = self.three_layer_memory.get_wakeup_context(
+            resolved_features,
+            resolved_confidences,
+        )
+        return [wakeup_context] if wakeup_context else []
+
+    def retrieve_relevant_memories(
+        self,
+        query: str,
+        n: int = 5,
+        deep_search: bool = False,
+        features: Optional[dict] = None,
+        confidences: Optional[dict] = None,
+    ) -> List[str]:
         """Retrieve memory texts relevant to a query."""
         if self.three_layer_memory:
-            # Use three-layer memory system for retrieval
+            if not deep_search:
+                return self.retrieve_wakeup_context(features=features, confidences=confidences)
+
+            # Use full three-layer memory retrieval for explicit deep search
             filters = self._detect_query_topic(query)
             full_context = self.three_layer_memory.get_full_context(query, **filters)
             return [full_context] if full_context else []
@@ -119,6 +151,24 @@ class MemoryManager:
             filters["emotion_valence_filter"] = "neutral"
 
         return filters
+
+    def _get_latest_feature_snapshot(self) -> tuple[dict, dict]:
+        """Load the latest persisted feature snapshot for wake-up retrieval."""
+        if not self.session_store:
+            return {}, {}
+
+        try:
+            history = self.session_store.get_feature_history(self.user_id, limit=1)
+            if not history:
+                return {}, {}
+
+            latest = history[0]
+            features = json.loads(latest.features) if latest.features else {}
+            confidences = json.loads(latest.confidences) if latest.confidences else {}
+            return features, confidences
+        except Exception as e:
+            logger.warning(f"Failed to load latest feature snapshot: {e}")
+            return {}, {}
 
     # ------------------------------------------------------------------
 

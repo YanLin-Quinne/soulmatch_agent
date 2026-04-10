@@ -664,6 +664,56 @@ CRITICAL: Only include facts explicitly present in the dialogue. Do NOT infer or
 
     # ========== Unified Context Retrieval ==========
 
+    def generate_identity_summary(self, features: dict, confidences: dict) -> str:
+        """Generate compact identity summary from high-confidence features (~50 tokens)."""
+        if not features:
+            return "Profile building..."
+
+        parts = []
+        for key, val in features.items():
+            conf = confidences.get(key, 0)
+            if conf > 0.7 and val is not None:
+                label = key.replace("big_five_", "").replace("interest_", "").replace("_", " ").title()
+                if isinstance(val, float):
+                    parts.append(f"{label}: {val:.1f}")
+                else:
+                    parts.append(f"{label}: {val}")
+
+        return "; ".join(parts[:8]) if parts else "Profile building..."
+
+    def generate_essential_story(self, top_k: int = 3) -> str:
+        """Generate essential story from most important episodic memories (~120 tokens)."""
+        if not self.episodic_memory:
+            return ""
+
+        recent = sorted(
+            self.episodic_memory,
+            key=lambda episode: episode.turn_range[1],
+            reverse=True,
+        )[:top_k]
+        summaries = [
+            f"[Turn {episode.turn_range[0]}-{episode.turn_range[1]}] {episode.summary[:80]}"
+            for episode in recent
+        ]
+        return "\n".join(summaries)
+
+    def get_wakeup_context(self, features: dict, confidences: dict) -> str:
+        """Get minimal wake-up context (~170 tokens). Use this instead of get_full_context() for most turns."""
+        identity = self.generate_identity_summary(features or {}, confidences or {})
+        story = self.generate_essential_story()
+        parts = []
+
+        if identity:
+            parts.append(f"[User Profile] {identity}")
+        if story:
+            parts.append(f"[Key Moments]\n{story}")
+
+        working = self.get_working_memory_context()
+        if working:
+            parts.append(working)
+
+        return "\n\n".join(parts) if parts else ""
+
     def get_full_context(
         self,
         query: Optional[str] = None,

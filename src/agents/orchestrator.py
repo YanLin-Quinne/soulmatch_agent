@@ -297,6 +297,7 @@ class OrchestratorAgent:
         # --- Phase 3: question strategy (needs features) ---
         try:
             await self._run_with_hooks("question_strategy", self._update_question_strategy)
+            await self._refresh_memory_context_if_needed(message)
         except HookDeniedError as e:
             logger.info(f"[Orchestrator] {e}")
         except Exception as e:
@@ -576,7 +577,15 @@ class OrchestratorAgent:
                 self.state_machine.handle_scam_detected(scam["warning_level"])
 
         async def _memory():
-            memories = await asyncio.to_thread(self.memory_manager.retrieve_relevant_memories, message)
+            deep_search = self._should_run_periodic_deep_search()
+            memories = await asyncio.to_thread(
+                self.memory_manager.retrieve_relevant_memories,
+                message,
+                5,
+                deep_search,
+                self.ctx.predicted_features,
+                self.ctx.feature_confidences,
+            )
             self.ctx.retrieved_memories = memories
 
         await asyncio.gather(_emotion(), _scam(), _memory(), return_exceptions=True)
@@ -626,6 +635,36 @@ class OrchestratorAgent:
             hints = self.question_agent.suggest_hints(low, self.ctx.conversation_history)
             self.ctx.suggested_probes = [h["text"] for h in hints]
             self.ctx.suggested_hints = hints
+        else:
+            self.ctx.suggested_probes = []
+            self.ctx.suggested_hints = []
+
+    def _should_run_periodic_deep_search(self) -> bool:
+        """Run a full memory refresh on periodic turns."""
+        return self.ctx.turn_count % 10 == 0
+
+    def _question_strategy_needs_deep_search(self) -> bool:
+        """Deep search when question strategy is actively probing unresolved traits."""
+        return bool(
+            self.state_machine.context.last_feature_update_turn == self.ctx.turn_count
+            and self.ctx.low_confidence_features
+            and self.ctx.suggested_hints
+        )
+
+    async def _refresh_memory_context_if_needed(self, message: str):
+        """Upgrade wake-up retrieval to full retrieval when the turn warrants it."""
+        if self._should_run_periodic_deep_search() or not self._question_strategy_needs_deep_search():
+            return
+
+        memories = await asyncio.to_thread(
+            self.memory_manager.retrieve_relevant_memories,
+            message,
+            5,
+            True,
+            self.ctx.predicted_features,
+            self.ctx.feature_confidences,
+        )
+        self.ctx.retrieved_memories = memories
 
     def _generate_bot_response(self) -> str:
         from src.agents.tools.builtin import set_tool_context, clear_tool_context

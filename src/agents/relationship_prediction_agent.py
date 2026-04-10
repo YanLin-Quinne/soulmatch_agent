@@ -20,7 +20,7 @@ from loguru import logger
 from .agent_context import AgentContext
 from .llm_router import router, AgentRole
 from .conformal_calibrator import ConformalCalibrator
-from .social_agents_room import SocialAgentsRoom  # New: Real demographic diversity
+from .social_agents_room import SocialAgentsRoom, SocialAgentVote, SocialConsensus  # New: Real demographic diversity
 
 
 class RelationshipPredictionAgent:
@@ -28,6 +28,9 @@ class RelationshipPredictionAgent:
 
     def __init__(self, llm_router=None, calibrator: Optional[ConformalCalibrator] = None, use_social_agents: bool = True):
         self.llm = llm_router or router
+        self.rule_expert_weight = 0.4
+        self.llm_social_agent_weight = 0.6
+        self.llm_social_agent_count = 3
 
         # Initialize calibrator and try to load calibration data
         if calibrator is None:
@@ -126,6 +129,7 @@ class RelationshipPredictionAgent:
             "next_status_prediction": next_status["status"],
             "next_status_probs": next_status["probs"],
             "reasoning_trace": rel_assessment.get("reasoning", ""),
+            "social_consensus": rel_assessment.get("social_consensus"),
         }
 
         # 写入context
@@ -202,6 +206,175 @@ Output format:
         confidence = min(abs(avg_valence) + 0.5, 1.0)
         return {"label": label, "confidence": confidence, "valence": avg_valence}
 
+    def _emotion_trend_expert(self, ctx: AgentContext) -> dict:
+        """Rule-based: analyze emotion history for relationship signal. Zero API cost."""
+        history = ctx.emotion_history
+        if len(history) < 3:
+            return {"vote": "neutral", "confidence": 0.3, "reasoning": "insufficient data"}
+
+        recent = history[-10:]
+        positive = sum(1 for e in recent if e in ("joy", "love", "surprise"))
+        negative = sum(1 for e in recent if e in ("sadness", "anger", "fear", "disgust"))
+        total = len(recent)
+
+        if positive / total > 0.6:
+            return {"vote": "can_advance", "confidence": 0.7, "reasoning": f"{positive}/{total} positive emotions"}
+        if negative / total > 0.4:
+            return {"vote": "cannot_advance", "confidence": 0.6, "reasoning": f"{negative}/{total} negative emotions"}
+        return {"vote": "uncertain", "confidence": 0.4, "reasoning": "mixed emotions"}
+
+    def _trust_trajectory_expert(self, ctx: AgentContext) -> dict:
+        """Rule-based: analyze trust score trajectory. Zero API cost."""
+        trust = ctx.extended_features.get("trust_score", 0.5)
+        velocity = ctx.extended_features.get("trust_velocity", 0.0)
+
+        if trust > 0.7 and velocity > 0:
+            return {"vote": "can_advance", "confidence": 0.75, "reasoning": f"high trust ({trust:.2f}) with positive velocity"}
+        if trust < 0.3:
+            return {"vote": "cannot_advance", "confidence": 0.7, "reasoning": f"low trust ({trust:.2f})"}
+        return {"vote": "uncertain", "confidence": 0.4, "reasoning": f"moderate trust ({trust:.2f})"}
+
+    def _disclosure_depth_expert(self, ctx: AgentContext) -> dict:
+        """Rule-based: measure self-disclosure frequency and depth. Zero API cost."""
+        history = ctx.conversation_history
+        if len(history) < 5:
+            return {"vote": "neutral", "confidence": 0.3, "reasoning": "insufficient conversation"}
+
+        user_msgs = [h["message"] for h in history if h.get("speaker") == "user"]
+        disclosure_markers = [
+            "I feel", "I think", "personally", "to be honest", "I've been",
+            "my family", "I remember", "I'm afraid", "I love", "I hate",
+            "我觉得", "其实", "说实话", "我家", "我记得", "我喜欢",
+        ]
+
+        disclosure_count = sum(
+            1 for msg in user_msgs
+            for marker in disclosure_markers
+            if marker.lower() in msg.lower()
+        )
+
+        ratio = disclosure_count / max(1, len(user_msgs))
+
+        if ratio > 0.3:
+            return {"vote": "can_advance", "confidence": 0.65, "reasoning": f"high self-disclosure ({disclosure_count} markers)"}
+        if ratio < 0.1:
+            return {"vote": "cannot_advance", "confidence": 0.5, "reasoning": "low self-disclosure"}
+        return {"vote": "uncertain", "confidence": 0.4, "reasoning": f"moderate disclosure ({disclosure_count} markers)"}
+
+    def _build_rule_based_votes(self, ctx: AgentContext, fallback_status: str, fallback_type: str) -> list[SocialAgentVote]:
+        """Convert zero-cost expert signals into SocialAgentVote entries for hybrid voting."""
+        expert_signals = [
+            ("EmotionTrendExpert", self._emotion_trend_expert(ctx)),
+            ("TrustTrajectoryExpert", self._trust_trajectory_expert(ctx)),
+            ("DisclosureDepthExpert", self._disclosure_depth_expert(ctx)),
+        ]
+
+        vote_map = {
+            "can_advance": "compatible",
+            "cannot_advance": "incompatible",
+            "neutral": "uncertain",
+            "uncertain": "uncertain",
+        }
+
+        votes = []
+        for expert_name, signal in expert_signals:
+            normalized_vote = vote_map.get(signal.get("vote", "uncertain"), "uncertain")
+            reasoning = signal.get("reasoning", "no reasoning provided")
+            confidence = float(signal.get("confidence", 0.4))
+            votes.append(
+                SocialAgentVote(
+                    agent_name=expert_name,
+                    agent_demographics={"source": "rule_based", "expert": expert_name},
+                    vote=normalized_vote,
+                    rel_status=fallback_status,
+                    rel_type=fallback_type,
+                    confidence=max(0.0, min(confidence, 1.0)),
+                    reasoning=reasoning,
+                    key_factors=[reasoning],
+                )
+            )
+
+        return votes
+
+    def _merge_hybrid_consensus(self, llm_consensus: SocialConsensus, rule_votes: list[SocialAgentVote]) -> SocialConsensus:
+        """Combine reduced LLM social votes with rule-based experts using explicit source weights."""
+        llm_votes = list(llm_consensus.votes)
+
+        if llm_votes and rule_votes:
+            llm_pool_weight = self.llm_social_agent_weight
+            rule_pool_weight = self.rule_expert_weight
+        elif llm_votes:
+            llm_pool_weight = 1.0
+            rule_pool_weight = 0.0
+        elif rule_votes:
+            llm_pool_weight = 0.0
+            rule_pool_weight = 1.0
+        else:
+            return llm_consensus
+
+        raw_llm_weights = llm_consensus.demographic_insights.get("demographic_weights", {})
+        raw_total = sum(raw_llm_weights.get(v.agent_name, 0.0) for v in llm_votes)
+
+        if llm_votes:
+            if raw_total > 0:
+                llm_weights = [llm_pool_weight * raw_llm_weights.get(v.agent_name, 0.0) / raw_total for v in llm_votes]
+            else:
+                llm_weights = [llm_pool_weight / len(llm_votes)] * len(llm_votes)
+        else:
+            llm_weights = []
+
+        if rule_votes:
+            rule_weights = [rule_pool_weight / len(rule_votes)] * len(rule_votes)
+        else:
+            rule_weights = []
+
+        combined_votes = llm_votes + rule_votes
+        combined_weights = llm_weights + rule_weights
+
+        vote_scores = {"compatible": 0.0, "incompatible": 0.0, "uncertain": 0.0}
+        vote_counts = {"compatible": 0, "incompatible": 0, "uncertain": 0}
+
+        for vote, weight in zip(combined_votes, combined_weights):
+            vote_counts[vote.vote] = vote_counts.get(vote.vote, 0) + 1
+            vote_scores[vote.vote] = vote_scores.get(vote.vote, 0.0) + weight * vote.confidence
+
+        decision = max(vote_scores, key=vote_scores.get)
+
+        winning_votes = [(vote, weight) for vote, weight in zip(combined_votes, combined_weights) if vote.vote == decision]
+        winning_weight = sum(weight for _, weight in winning_votes)
+        avg_confidence = (
+            sum(vote.confidence * weight for vote, weight in winning_votes) / winning_weight
+            if winning_weight > 0 else llm_consensus.confidence
+        )
+
+        reasoning_parts = []
+        for vote, weight in sorted(zip(combined_votes, combined_weights), key=lambda item: item[1], reverse=True):
+            reasoning_parts.append(f"{vote.agent_name} (weight={weight:.2f}, {vote.vote}, {vote.confidence:.2f}): {vote.reasoning[:100]}...")
+
+        total_score = sum(vote_scores.values())
+        demographic_insights = dict(llm_consensus.demographic_insights)
+        demographic_insights.update({
+            "llm_agents_used": len(llm_votes),
+            "rule_experts_used": len(rule_votes),
+            "hybrid_vote_distribution": vote_counts,
+            "hybrid_weighted_scores": vote_scores,
+            "hybrid_weights": {vote.agent_name: weight for vote, weight in zip(combined_votes, combined_weights)},
+            "hybrid_consensus_strength": vote_scores[decision] / total_score if total_score > 0 else 0.0,
+        })
+
+        return SocialConsensus(
+            decision=decision,
+            rel_status=llm_consensus.rel_status,
+            rel_type=llm_consensus.rel_type,
+            rel_status_probs=llm_consensus.rel_status_probs,
+            rel_type_probs=llm_consensus.rel_type_probs,
+            confidence=avg_confidence,
+            votes=combined_votes,
+            vote_distribution=vote_counts,
+            reasoning="\n".join(reasoning_parts),
+            demographic_insights=demographic_insights,
+        )
+
     async def _multi_role_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
         """Step 3: Social Agents评估(demographic diverse agents)→关系类型+状态"""
 
@@ -230,22 +403,25 @@ Output format:
             "relationship_status": ctx.extended_features.get("relationship_status", "single")
         }
 
-        # 调用Social Agents Room with demographic weighting
-        consensus = await self.social_agents_room.assess_relationship(
+        selected_agents = self.social_agents_room.social_agents[:self.llm_social_agent_count]
+        llm_consensus = await self.social_agents_room.assess_relationship(
             conversation_summary=compressed_context,
             relationship_context=relationship_context,
-            user_demographics=user_demographics
+            user_demographics=user_demographics,
+            custom_agents=selected_agents,
         )
+        rule_votes = self._build_rule_based_votes(ctx, llm_consensus.rel_status, llm_consensus.rel_type)
+        consensus = self._merge_hybrid_consensus(llm_consensus, rule_votes)
+        rel_status_confidence = max(consensus.rel_status_probs.values()) if consensus.rel_status_probs else consensus.confidence
 
-        # 使用Social Agents的投票结果（而不是硬编码）
         return {
             "rel_type": consensus.rel_type,
             "rel_type_probs": consensus.rel_type_probs,
-            "rel_status": consensus.rel_status,  # 使用投票结果，而不是ctx.rel_status
+            "rel_status": consensus.rel_status,
             "rel_status_probs": consensus.rel_status_probs,
-            "rel_status_confidence": consensus.confidence,
-            "reasoning": f"Social Agents Consensus (demographic-weighted, {consensus.vote_distribution}): {consensus.reasoning[:200]}...",
-            "social_consensus": consensus,  # 保存完整的consensus结果
+            "rel_status_confidence": rel_status_confidence,
+            "reasoning": f"Hybrid Social Consensus (3 LLM + 3 rule experts, {consensus.vote_distribution}): {consensus.reasoning[:200]}...",
+            "social_consensus": consensus,
         }
 
     async def _single_llm_assessment(self, ctx: AgentContext, compressed_context: str) -> Dict[str, Any]:
