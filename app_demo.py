@@ -683,6 +683,8 @@ with gr.Blocks(title="AI YOU · EMNLP Demo") as demo:
 
         try:
             pool = get_bot_pool()
+            if pool is None:
+                raise RuntimeError("Bot pool not initialized — check API keys in Space settings")
             uid  = str(uuid.uuid4())[:8]
             orch = OrchestratorAgent(uid, pool, bot_id)
             start = orch.start_new_conversation(bot_id)
