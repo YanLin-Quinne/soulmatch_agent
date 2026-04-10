@@ -246,7 +246,7 @@
       "big_five_agreeableness": 0.88,
       "big_five_neuroticism": 0.38,
       "mbti": "ENFJ",
-      "communication_style": "warm",
+      "communication_style": "casual",
       "communication_confidence": 0.87,
       "values_confidence": 0.85,
       "goals_confidence": 0.81
@@ -292,7 +292,7 @@
       "big_five_agreeableness": 0.9,
       "big_five_neuroticism": 0.41,
       "mbti": "ESFJ",
-      "communication_style": "warm",
+      "communication_style": "casual",
       "communication_confidence": 0.84,
       "values_confidence": 0.83,
       "goals_confidence": 0.78
@@ -315,7 +315,7 @@
       "big_five_agreeableness": 0.51,
       "big_five_neuroticism": 0.27,
       "mbti": "ISTP",
-      "communication_style": "analytical",
+      "communication_style": "serious",
       "communication_confidence": 0.81,
       "values_confidence": 0.72,
       "goals_confidence": 0.76
@@ -338,7 +338,7 @@
       "big_five_agreeableness": 0.56,
       "big_five_neuroticism": 0.36,
       "mbti": "ENTP",
-      "communication_style": "analytical",
+      "communication_style": "serious",
       "communication_confidence": 0.9,
       "values_confidence": 0.77,
       "goals_confidence": 0.8
@@ -361,7 +361,7 @@
       "big_five_agreeableness": 0.86,
       "big_five_neuroticism": 0.52,
       "mbti": "INFP",
-      "communication_style": "warm",
+      "communication_style": "casual",
       "communication_confidence": 0.78,
       "values_confidence": 0.86,
       "goals_confidence": 0.7
@@ -407,7 +407,7 @@
       "big_five_agreeableness": 0.59,
       "big_five_neuroticism": 0.34,
       "mbti": "INTP",
-      "communication_style": "analytical",
+      "communication_style": "serious",
       "communication_confidence": 0.83,
       "values_confidence": 0.74,
       "goals_confidence": 0.71
@@ -430,7 +430,7 @@
       "big_five_agreeableness": 0.87,
       "big_five_neuroticism": 0.37,
       "mbti": "ISFJ",
-      "communication_style": "warm",
+      "communication_style": "casual",
       "communication_confidence": 0.82,
       "values_confidence": 0.84,
       "goals_confidence": 0.79
@@ -499,7 +499,7 @@
       "big_five_agreeableness": 0.57,
       "big_five_neuroticism": 0.33,
       "mbti": "INTJ",
-      "communication_style": "analytical",
+      "communication_style": "serious",
       "communication_confidence": 0.86,
       "values_confidence": 0.79,
       "goals_confidence": 0.88
@@ -572,7 +572,11 @@
       "communication_confidence": 0.9,
       "values_confidence": 0.9,
       "goals_confidence": 0.85,
-      "core_values": ["empathy", "growth", "authenticity"],
+      "core_values": [
+        "empathy",
+        "growth",
+        "authenticity"
+      ],
       "relationship_goals": "professional_support",
       "personality_summary": "Warm, insightful psychologist who combines deep empathy with structured therapeutic thinking"
     }
@@ -598,7 +602,11 @@
       "communication_confidence": 0.85,
       "values_confidence": 0.85,
       "goals_confidence": 0.9,
-      "core_values": ["achievement", "growth", "strategy"],
+      "core_values": [
+        "achievement",
+        "growth",
+        "strategy"
+      ],
       "relationship_goals": "mentorship",
       "personality_summary": "Driven strategist who combines analytical precision with genuine care for professional development"
     }
@@ -624,7 +632,11 @@
       "communication_confidence": 0.5,
       "values_confidence": 0.5,
       "goals_confidence": 0.5,
-      "core_values": ["self_reflection", "authenticity", "growth"],
+      "core_values": [
+        "self_reflection",
+        "authenticity",
+        "growth"
+      ],
       "relationship_goals": "self_reflection",
       "personality_summary": "Dynamic personality mirror that adapts to reflect the user's own traits and communication patterns"
     }
