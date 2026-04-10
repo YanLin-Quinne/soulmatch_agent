@@ -77,8 +77,20 @@ FALLBACK_PERSONAS = [
 ]
 
 
+EXPERT_PERSONAS = [
+    {"id": "bot_expert_psych",  "name": "Dr. Maya Liu",  "age": 42, "sex": "F", "location": "San Francisco", "communication_style": "formal",  "personality_summary": "Clinical psychologist, empathetic and insightful", "interests": ["psychology", "mindfulness", "research"], "mode": "expert"},
+    {"id": "bot_expert_career", "name": "Alex Park",      "age": 36, "sex": "M", "location": "New York",      "communication_style": "direct",  "personality_summary": "Career strategist, analytical and motivating",    "interests": ["strategy", "leadership", "coaching"],   "mode": "expert"},
+]
+
+SELF_DIALOGUE_PERSONAS = [
+    {"id": "bot_mirror_self", "name": "Mirror Self", "age": None, "sex": None, "location": None, "communication_style": "casual", "personality_summary": "Your digital twin — reflects your own personality", "interests": ["self-reflection"], "mode": "self_dialogue"},
+]
+
+
 def _load_personas() -> list[dict]:
     if not BACKEND:
+        for p in FALLBACK_PERSONAS:
+            p["mode"] = "social"
         return FALLBACK_PERSONAS
     try:
         pool = get_bot_pool()
@@ -86,13 +98,23 @@ def _load_personas() -> list[dict]:
         result = []
         for pid, s in list(summaries.items())[:8]:
             s["id"] = pid
+            s["mode"] = "social"
             result.append(s)
         return result if result else FALLBACK_PERSONAS
     except Exception:
+        for p in FALLBACK_PERSONAS:
+            p["mode"] = "social"
         return FALLBACK_PERSONAS
 
 
-PERSONAS = _load_personas()
+ALL_PERSONAS = _load_personas() + EXPERT_PERSONAS + SELF_DIALOGUE_PERSONAS
+PERSONAS = [p for p in ALL_PERSONAS if p.get("mode") == "social"]  # default view
+
+
+def _filter_personas_by_mode(mode: str) -> list[dict]:
+    mode_map = {"🗣️ Social Chat": "social", "🎓 Expert Consulting": "expert", "🪞 Self-Dialogue": "self_dialogue"}
+    target = mode_map.get(mode, "social")
+    return [p for p in ALL_PERSONAS if p.get("mode") == target]
 
 # ─── Visualization builders ───────────────────────────────────────────────────
 
@@ -573,15 +595,35 @@ with gr.Blocks(title="AI YOU · EMNLP Demo") as demo:
 
             # Persona selection panel
             with gr.Column(visible=True) as persona_panel:
+                mode_radio = gr.Radio(
+                    choices=["🗣️ Social Chat", "🎓 Expert Consulting", "🪞 Self-Dialogue"],
+                    value="🗣️ Social Chat",
+                    label="Conversation Mode",
+                    elem_classes=["mode-radio"],
+                )
                 gr.HTML('<div class="persona-section-title">Choose a Conversation Partner</div>')
+
+                # Social personas
                 persona_buttons: list[tuple[gr.Button, str]] = []
-                for row_start in range(0, min(len(PERSONAS), 8), 4):
+                with gr.Column(visible=True) as social_group:
+                    for row_start in range(0, min(len(PERSONAS), 8), 4):
+                        with gr.Row():
+                            for p in PERSONAS[row_start : row_start + 4]:
+                                btn = gr.Button(_persona_btn_label(p), elem_classes=["persona-btn"])
+                                persona_buttons.append((btn, p["id"]))
+
+                # Expert personas
+                with gr.Column(visible=False) as expert_group:
                     with gr.Row():
-                        for p in PERSONAS[row_start : row_start + 4]:
-                            btn = gr.Button(
-                                _persona_btn_label(p),
-                                elem_classes=["persona-btn"],
-                            )
+                        for p in EXPERT_PERSONAS:
+                            btn = gr.Button(_persona_btn_label(p), elem_classes=["persona-btn"])
+                            persona_buttons.append((btn, p["id"]))
+
+                # Self-dialogue personas
+                with gr.Column(visible=False) as self_group:
+                    with gr.Row():
+                        for p in SELF_DIALOGUE_PERSONAS:
+                            btn = gr.Button(_persona_btn_label(p), elem_classes=["persona-btn"])
                             persona_buttons.append((btn, p["id"]))
 
             # Chat panel (hidden until persona selected)
@@ -827,6 +869,20 @@ with gr.Blocks(title="AI YOU · EMNLP Demo") as demo:
         outputs=SEND_OUTS,
     )
     back_btn.click(fn=on_back, inputs=[], outputs=FULL_OUTS)
+
+    # Mode switching — toggle persona groups
+    def switch_mode(mode):
+        return (
+            gr.update(visible=(mode == "🗣️ Social Chat")),
+            gr.update(visible=(mode == "🎓 Expert Consulting")),
+            gr.update(visible=(mode == "🪞 Self-Dialogue")),
+        )
+
+    mode_radio.change(
+        fn=switch_mode,
+        inputs=[mode_radio],
+        outputs=[social_group, expert_group, self_group],
+    )
 
 
 # ─── Launch ───────────────────────────────────────────────────────────────────
