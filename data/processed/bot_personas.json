@@ -200,7 +200,7 @@
       "big_five_agreeableness": 0.52,
       "big_five_neuroticism": 0.32,
       "mbti": "ESTP",
-      "communication_style": "energetic",
+      "communication_style": "direct",
       "communication_confidence": 0.88,
       "values_confidence": 0.74,
       "goals_confidence": 0.82
@@ -223,7 +223,7 @@
       "big_five_agreeableness": 0.79,
       "big_five_neuroticism": 0.42,
       "mbti": "ESFP",
-      "communication_style": "energetic",
+      "communication_style": "direct",
       "communication_confidence": 0.86,
       "values_confidence": 0.8,
       "goals_confidence": 0.74
