@@ -17,6 +17,7 @@ from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 from loguru import logger
+from src.agents.privacy_guard import PrivacyGuard
 
 if TYPE_CHECKING:
     from src.agents.llm_router import LLMRouter, AgentRole
@@ -70,6 +71,7 @@ class ThreeLayerMemory:
     def __init__(self, llm_router, working_memory_size: int = 20, user_id: str = "default", session_store=None):
         from src.agents.llm_router import LLMRouter
         self.llm: LLMRouter = llm_router
+        self.privacy_guard = PrivacyGuard()
         self.working_memory_size = working_memory_size
         self.user_id = user_id
         self.session_store = session_store  # Optional[SessionStore] for DB persistence
@@ -140,6 +142,73 @@ class ThreeLayerMemory:
             context += f"[Turn {item.turn}] {item.speaker}: {item.message}\n"
         return context
 
+    def _classify_episode_metadata(self, summary: str, key_events: List[str]) -> Dict[str, str]:
+        """Classify episode metadata for hierarchical filtering."""
+        summary_lower = f"{summary} {' '.join(key_events)}".lower()
+
+        topic = "general"
+        topic_keywords = {
+            "emotion": ["feel", "emotion", "happy", "sad", "angry", "love", "fear", "anxious", "worried", "excited"],
+            "personality": ["personality", "trait", "openness", "conscientious", "extravert", "agreeable", "neurotic", "mbti", "introvert"],
+            "interest": ["hobby", "interest", "music", "sport", "travel", "food", "art", "tech", "book", "movie", "game"],
+            "relationship": ["relationship", "trust", "bond", "connection", "dating", "friend", "partner", "commitment"],
+            "safety": ["scam", "suspicious", "warning", "risk", "danger", "fraud", "money", "transfer"],
+        }
+        for topic_name, keywords in topic_keywords.items():
+            if any(keyword in summary_lower for keyword in keywords):
+                topic = topic_name
+                break
+
+        feature_group = "none"
+        fg_keywords = {
+            "big5": ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism", "big five"],
+            "mbti": ["mbti", "introvert", "extrovert", "sensing", "intuition", "thinking", "feeling", "judging", "perceiving"],
+            "attachment": ["attachment", "secure", "anxious", "avoidant", "disorganized"],
+            "trust": ["trust", "trust_score", "trustworth"],
+            "interest": ["interest", "hobby", "passion", "enjoy"],
+            "lifestyle": ["lifestyle", "diet", "exercise", "routine", "habit"],
+            "background": ["education", "job", "career", "family", "hometown"],
+        }
+        for feature_name, keywords in fg_keywords.items():
+            if any(keyword in summary_lower for keyword in keywords):
+                feature_group = feature_name
+                break
+
+        return {"topic": topic, "feature_group": feature_group}
+
+    def _get_emotion_valence(self, emotion_trend: str) -> str:
+        return {
+            "improving": "positive",
+            "declining": "negative",
+            "stable": "neutral",
+        }.get(emotion_trend, "neutral")
+
+    def _build_episode_chroma_metadata(self, episode: EpisodicMemoryItem) -> Dict[str, Any]:
+        metadata = self._classify_episode_metadata(episode.summary, episode.key_events)
+        return {
+            "turn_start": episode.turn_range[0],
+            "turn_end": episode.turn_range[1],
+            "emotion_trend": episode.emotion_trend,
+            "key_events": ",".join(episode.key_events),
+            "topic": metadata["topic"],
+            "feature_group": metadata["feature_group"],
+            "emotion_valence": self._get_emotion_valence(episode.emotion_trend),
+        }
+
+    def _episode_matches_filters(
+        self,
+        episode: EpisodicMemoryItem,
+        topic_filter: Optional[str] = None,
+        feature_group_filter: Optional[str] = None,
+        emotion_valence_filter: Optional[str] = None,
+    ) -> bool:
+        metadata = self._build_episode_chroma_metadata(episode)
+        return (
+            (topic_filter is None or metadata["topic"] == topic_filter)
+            and (feature_group_filter is None or metadata["feature_group"] == feature_group_filter)
+            and (emotion_valence_filter is None or metadata["emotion_valence"] == emotion_valence_filter)
+        )
+
     # ========== Layer 2: Episodic Memory ==========
 
     def _compress_to_episodic(self):
@@ -200,6 +269,11 @@ IMPORTANT:
                 participants=data.get("participants", ["user", "bot"])
             )
 
+            scan_result = self.privacy_guard.scan(episode.summary)
+            if scan_result["overall_risk"] in {"high", "critical"}:
+                logger.warning(f"PII detected in episodic memory (risk={scan_result['overall_risk']}), redacting before storage")
+                episode.summary = self.privacy_guard.redact(episode.summary)
+
             self.episodic_memory.append(episode)
             logger.info(f"[ThreeLayerMemory] Compressed turns {turn_range[0]}-{turn_range[1]} to episodic memory")
 
@@ -232,12 +306,7 @@ IMPORTANT:
                     self.chroma_collection.add(
                         ids=[episode.episode_id],
                         documents=[episode.summary],
-                        metadatas=[{
-                            "turn_start": turn_range[0],
-                            "turn_end": turn_range[1],
-                            "emotion_trend": episode.emotion_trend,
-                            "key_events": ",".join(episode.key_events)
-                        }]
+                        metadatas=[self._build_episode_chroma_metadata(episode)]
                     )
                     logger.debug(f"[ThreeLayerMemory] Stored episode {episode.episode_id} to ChromaDB")
                 except Exception as e:
@@ -249,16 +318,43 @@ IMPORTANT:
         except Exception as e:
             logger.error(f"[ThreeLayerMemory] Episodic compression failed: {e}")
 
-    def retrieve_relevant_episodes(self, query: str, top_k: int = 3) -> List[EpisodicMemoryItem]:
+    def retrieve_relevant_episodes(
+        self,
+        query: str,
+        top_k: int = 3,
+        topic_filter: str = None,
+        feature_group_filter: str = None,
+        emotion_valence_filter: str = None,
+    ) -> List[EpisodicMemoryItem]:
         """语义检索相关情景（使用embedding或关键词匹配）"""
+        if not self.episodic_memory:
+            return []
+
+        where_conditions = []
+        if topic_filter:
+            where_conditions.append({"topic": topic_filter})
+        if feature_group_filter:
+            where_conditions.append({"feature_group": feature_group_filter})
+        if emotion_valence_filter:
+            where_conditions.append({"emotion_valence": emotion_valence_filter})
+
+        where_clause = None
+        if len(where_conditions) == 1:
+            where_clause = where_conditions[0]
+        elif len(where_conditions) > 1:
+            where_clause = {"$and": where_conditions}
 
         # 优先使用embedding检索
         if self.use_embeddings and self.chroma_collection:
             try:
-                results = self.chroma_collection.query(
-                    query_texts=[query],
-                    n_results=min(top_k, len(self.episodic_memory))
-                )
+                query_kwargs = {
+                    "query_texts": [query],
+                    "n_results": min(top_k, max(1, len(self.episodic_memory))),
+                }
+                if where_clause:
+                    query_kwargs["where"] = where_clause
+
+                results = self.chroma_collection.query(**query_kwargs)
 
                 if results and results['ids'] and len(results['ids'][0]) > 0:
                     # 根据返回的episode_id找到对应的EpisodicMemoryItem
@@ -273,26 +369,66 @@ IMPORTANT:
                     logger.debug(f"[ThreeLayerMemory] Retrieved {len(relevant)} episodes via embedding search")
                     return relevant
             except Exception as e:
-                logger.warning(f"[ThreeLayerMemory] Embedding retrieval failed: {e}. Falling back to keyword matching.")
+                if where_clause:
+                    logger.warning(f"[ThreeLayerMemory] Filtered retrieval failed, falling back to unfiltered: {e}")
+                    try:
+                        results = self.chroma_collection.query(
+                            query_texts=[query],
+                            n_results=min(top_k, max(1, len(self.episodic_memory)))
+                        )
+
+                        if results and results['ids'] and len(results['ids'][0]) > 0:
+                            episode_ids = results['ids'][0]
+                            relevant = []
+                            for ep_id in episode_ids:
+                                for episode in self.episodic_memory:
+                                    if episode.episode_id == ep_id:
+                                        relevant.append(episode)
+                                        break
+
+                            logger.debug(f"[ThreeLayerMemory] Retrieved {len(relevant)} episodes via unfiltered embedding search")
+                            return relevant
+                    except Exception as fallback_error:
+                        logger.warning(f"[ThreeLayerMemory] Unfiltered embedding retrieval failed: {fallback_error}. Falling back to keyword matching.")
+                else:
+                    logger.warning(f"[ThreeLayerMemory] Embedding retrieval failed: {e}. Falling back to keyword matching.")
 
         # Fallback: 关键词匹配
         relevant = []
         query_lower = query.lower()
 
         for episode in self.episodic_memory:
+            if not self._episode_matches_filters(
+                episode,
+                topic_filter=topic_filter,
+                feature_group_filter=feature_group_filter,
+                emotion_valence_filter=emotion_valence_filter,
+            ):
+                continue
             if any(keyword in episode.summary.lower() for keyword in query_lower.split()):
                 relevant.append(episode)
 
         logger.debug(f"[ThreeLayerMemory] Retrieved {len(relevant[:top_k])} episodes via keyword matching")
         return relevant[:top_k]
 
-    def get_episodic_memory_context(self, query: Optional[str] = None) -> str:
+    def get_episodic_memory_context(
+        self,
+        query: Optional[str] = None,
+        topic_filter: Optional[str] = None,
+        feature_group_filter: Optional[str] = None,
+        emotion_valence_filter: Optional[str] = None,
+    ) -> str:
         """获取情景记忆上下文"""
         if not self.episodic_memory:
             return ""
 
         if query:
-            episodes = self.retrieve_relevant_episodes(query)
+            episodes = self.retrieve_relevant_episodes(
+                query,
+                topic_filter=topic_filter,
+                feature_group_filter=feature_group_filter,
+                emotion_valence_filter=emotion_valence_filter,
+            )
         else:
             episodes = self.episodic_memory[-3:]  # 最近3个情景
 
@@ -514,12 +650,7 @@ CRITICAL: Only include facts explicitly present in the dialogue. Do NOT infer or
                     self.chroma_collection.update(
                         ids=[episode.episode_id],
                         documents=[episode.summary],
-                        metadatas=[{
-                            "turn_start": episode.turn_range[0],
-                            "turn_end": episode.turn_range[1],
-                            "emotion_trend": episode.emotion_trend,
-                            "key_events": ",".join(episode.key_events)
-                        }]
+                        metadatas=[self._build_episode_chroma_metadata(episode)]
                     )
                     logger.info(f"[ThreeLayerMemory] Fixed and updated episode {episode.episode_id}")
                 except Exception as e:
@@ -533,7 +664,13 @@ CRITICAL: Only include facts explicitly present in the dialogue. Do NOT infer or
 
     # ========== Unified Context Retrieval ==========
 
-    def get_full_context(self, query: Optional[str] = None) -> str:
+    def get_full_context(
+        self,
+        query: Optional[str] = None,
+        topic_filter: Optional[str] = None,
+        feature_group_filter: Optional[str] = None,
+        emotion_valence_filter: Optional[str] = None,
+    ) -> str:
         """获取完整的三层记忆上下文（注入LLM prompt）"""
         context = ""
 
@@ -542,7 +679,12 @@ CRITICAL: Only include facts explicitly present in the dialogue. Do NOT infer or
         context += "\n"
 
         # Layer 2: Episodic Memory (相关情景)
-        context += self.get_episodic_memory_context(query)
+        context += self.get_episodic_memory_context(
+            query,
+            topic_filter=topic_filter,
+            feature_group_filter=feature_group_filter,
+            emotion_valence_filter=emotion_valence_filter,
+        )
         context += "\n"
 
         # Layer 3: Semantic Memory (高层反思)

@@ -313,6 +313,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                             "data": result["memory_stats"]
                         })
 
+                    if "privacy_report" in result:
+                        await manager.send_message(user_id, {
+                            "type": "privacy_report",
+                            "data": result["privacy_report"]
+                        })
+
                     # Send warning message if present
                     if "warning" in result:
                         await manager.send_message(user_id, {

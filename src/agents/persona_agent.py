@@ -289,6 +289,9 @@ class PersonaAgent:
             if rel_block:
                 parts.append(rel_block)
 
+            if ctx and ctx.stability_prompt:
+                parts.append(ctx.stability_prompt)
+
         return "\n\n".join(parts)
 
     def _get_fallback_response(self) -> str:

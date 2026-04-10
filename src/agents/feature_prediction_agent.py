@@ -109,7 +109,12 @@ class FeaturePredictionAgent:
             f"{msg['speaker']}: {msg['message']}" for msg in conversation_history[-10:]
         )
 
-        # Use Chain-of-Thought reasoning for more accurate predictions
+        if self.conversation_count >= 5 and len(conversation_history) >= 5:
+            result = self._extract_features_contrastive(conversation_history)
+            if result is not None:
+                return result
+            logger.debug("Contrastive extraction returned None, falling back")
+
         if self.use_cot and self.conversation_count >= 3:
             result = self._extract_features_with_cot(conversation_text)
             if result is not None:
@@ -179,6 +184,57 @@ class FeaturePredictionAgent:
         except Exception as e:
             logger.error(f"CoT feature extraction failed: {e}")
             return None
+
+    def _extract_features_contrastive(self, conversation_history: List[dict]) -> Optional[Dict[str, any]]:
+        """Contrastive decoding: compare full-context vs minimal-context extraction to detect hallucinations.
+
+        Inspired by Clinical Contrastive Decoding (CCD). If a feature appears with high confidence
+        in the full-context extraction but has NO evidence in the minimal-context (last 3 turns),
+        it's likely hallucinated and its confidence should be reduced.
+        """
+        full_text = "\n".join(f"{msg['speaker']}: {msg['message']}" for msg in conversation_history[-10:])
+        full_result = self._extract_features_direct(full_text)
+
+        if not full_result:
+            return None
+
+        minimal_text = "\n".join(f"{msg['speaker']}: {msg['message']}" for msg in conversation_history[-3:])
+        minimal_result = self._extract_features_direct(minimal_text)
+
+        if not minimal_result:
+            return full_result
+
+        full_conf = full_result.get("_confidence", {})
+        minimal_conf = minimal_result.get("_confidence", {})
+
+        adjusted_conf = dict(full_conf)
+        hallucination_flags = []
+
+        for key in full_conf:
+            full_c = full_conf.get(key, 0)
+            minimal_c = minimal_conf.get(key, 0)
+
+            if full_c > 0.5 and minimal_c < 0.2:
+                adjusted_conf[key] = full_c * 0.5
+                hallucination_flags.append(key)
+                logger.warning(
+                    f"[Contrastive] Potential hallucination on '{key}': "
+                    f"full_conf={full_c:.2f}, minimal_conf={minimal_c:.2f}"
+                )
+            elif full_c > 0.3 and minimal_c < 0.1:
+                adjusted_conf[key] = full_c * 0.7
+                hallucination_flags.append(key)
+
+        full_result["_confidence"] = adjusted_conf
+        full_result["_hallucination_flags"] = hallucination_flags
+
+        if hallucination_flags:
+            logger.info(
+                f"[Contrastive] Flagged {len(hallucination_flags)} potential hallucinations: "
+                f"{hallucination_flags}"
+            )
+
+        return full_result
 
     def _extract_features_direct(self, conversation_text: str) -> Optional[Dict[str, any]]:
         """Direct LLM extraction without reasoning chain (fallback)."""
@@ -264,6 +320,10 @@ Guidelines:
 
     def _update_features(self, new_obs: Dict[str, any]) -> tuple[Dict, Dict]:
         confidences = new_obs.pop("_confidence", {})
+        hallucination_flags = {
+            f"interest_{key[len('interests_'):]}" if key.startswith("interests_") else key
+            for key in new_obs.pop("_hallucination_flags", [])
+        }
 
         flat_obs: Dict[str, any] = {}
         flat_conf: Dict[str, float] = {}
@@ -290,7 +350,11 @@ Guidelines:
         for key in numeric_keys:
             pv = self.predicted_features.get(key, 0.5)
             pc = self.feature_confidences.get(key, 0.3)
-            nv, nc = self.bayesian_updater.update_feature(pv, pc, flat_obs[key], flat_conf[key])
+            obs_conf = flat_conf[key]
+            if key in hallucination_flags:
+                obs_conf *= 0.5
+                logger.debug(f"[Contrastive] Lowering Bayesian observation precision for flagged feature '{key}'")
+            nv, nc = self.bayesian_updater.update_feature(pv, pc, flat_obs[key], obs_conf)
             updated_f[key] = nv
             updated_c[key] = nc
 

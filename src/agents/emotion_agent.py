@@ -100,12 +100,16 @@ class EmotionAgent:
         seq = [h["emotion"] for h in self.emotion_history]
         prediction = self.predictor.predict_next_emotion(seq)
         strategy = self._reply_strategy(detection["emotion"])
-
-        return {
+        result = {
             "current_emotion": detection,
             "predicted_next": prediction,
             "reply_strategy": strategy,
         }
+        sudden_shift = self.detect_sudden_shift()
+        if sudden_shift:
+            result["sudden_shift"] = sudden_shift
+
+        return result
 
     def _reply_strategy(self, emotion: str) -> Dict[str, any]:
         strategies = {
@@ -122,3 +126,38 @@ class EmotionAgent:
 
     def clear_history(self):
         self.emotion_history = []
+
+    def detect_sudden_shift(self) -> Optional[dict]:
+        """Detect sudden emotional shifts (valence reversal > 0.5 in 2 consecutive turns).
+
+        Uses a valence mapping to convert emotions to a -1.0 to 1.0 scale,
+        then checks if the last 2 turns show a dramatic reversal.
+
+        Returns:
+            Dict with shift details if detected, None otherwise.
+        """
+        VALENCE_MAP = {
+            "joy": 1.0, "love": 0.9, "surprise": 0.3,
+            "neutral": 0.0,
+            "fear": -0.5, "sadness": -0.7, "anger": -0.8, "disgust": -0.6,
+        }
+
+        if len(self.emotion_history) < 2:
+            return None
+
+        prev = self.emotion_history[-2]
+        curr = self.emotion_history[-1]
+        prev_valence = VALENCE_MAP.get(prev["emotion"], 0.0)
+        curr_valence = VALENCE_MAP.get(curr["emotion"], 0.0)
+        delta = curr_valence - prev_valence
+
+        if abs(delta) > 0.5:
+            return {
+                "type": "sudden_shift",
+                "from_emotion": prev["emotion"],
+                "to_emotion": curr["emotion"],
+                "valence_delta": round(delta, 2),
+                "direction": "positive_shift" if delta > 0 else "negative_shift",
+                "severity": "high" if abs(delta) > 1.0 else "moderate",
+            }
+        return None

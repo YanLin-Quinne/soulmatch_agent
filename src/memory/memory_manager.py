@@ -2,9 +2,10 @@
 
 import json
 import uuid
-from typing import Optional, List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from loguru import logger
 
+from src.agents.memory_privacy_manager import MemoryPrivacyManager
 from src.memory.memory_operations import Memory, MemoryAction, MemoryOperation
 from src.memory.chromadb_client import ChromaDBClient
 
@@ -16,11 +17,20 @@ if TYPE_CHECKING:
 class MemoryManager:
     """Memory Manager Agent using LLMRouter with Three-Layer Memory System."""
 
-    def __init__(self, user_id: str, db_client: Optional[ChromaDBClient] = None, use_llm: bool = True, use_three_layer: bool = True, session_store=None):
+    def __init__(
+        self,
+        user_id: str,
+        db_client: Optional[ChromaDBClient] = None,
+        use_llm: bool = True,
+        use_three_layer: bool = True,
+        session_store=None,
+        privacy_manager: Optional[MemoryPrivacyManager] = None,
+    ):
         self.user_id = user_id
         self.db_client = db_client or ChromaDBClient()
         self.use_llm = use_llm
         self.use_three_layer = use_three_layer
+        self.privacy_manager = privacy_manager
         self.conversation_history: List[dict] = []
         self.current_turn: int = 0
 
@@ -52,11 +62,13 @@ class MemoryManager:
         """Retrieve memory texts relevant to a query."""
         if self.three_layer_memory:
             # Use three-layer memory system for retrieval
-            full_context = self.three_layer_memory.get_full_context(query)
+            filters = self._detect_query_topic(query)
+            full_context = self.three_layer_memory.get_full_context(query, **filters)
             return [full_context] if full_context else []
         else:
             # Fallback to ChromaDB
             memories = self.db_client.retrieve_memories(user_id=self.user_id, query_text=query, n_results=n)
+            memories = self._filter_forgotten_memories(memories)
             return [m.content for m in memories] if memories else []
 
     def get_memory_stats(self) -> dict:
@@ -67,6 +79,46 @@ class MemoryManager:
             "current_turn": self.current_turn,
             "total_memories": 0
         }
+
+    def _detect_query_topic(self, query: str) -> dict:
+        """Auto-detect metadata filters from query context."""
+        query_lower = query.lower()
+        filters = {}
+
+        if any(word in query_lower for word in ["feel", "emotion", "mood", "happy", "sad"]):
+            filters["topic_filter"] = "emotion"
+        elif any(word in query_lower for word in ["personality", "trait", "character"]):
+            filters["topic_filter"] = "personality"
+        elif any(word in query_lower for word in ["hobby", "interest", "like", "enjoy"]):
+            filters["topic_filter"] = "interest"
+        elif any(word in query_lower for word in ["relationship", "trust", "bond"]):
+            filters["topic_filter"] = "relationship"
+        elif any(word in query_lower for word in ["scam", "suspicious", "warning", "risk", "fraud", "money", "transfer"]):
+            filters["topic_filter"] = "safety"
+
+        if any(word in query_lower for word in ["big five", "big5", "openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]):
+            filters["feature_group_filter"] = "big5"
+        elif any(word in query_lower for word in ["mbti", "introvert", "extrovert", "sensing", "intuition", "thinking", "feeling", "judging", "perceiving"]):
+            filters["feature_group_filter"] = "mbti"
+        elif any(word in query_lower for word in ["attachment", "secure", "anxious", "avoidant", "disorganized"]):
+            filters["feature_group_filter"] = "attachment"
+        elif any(word in query_lower for word in ["trust", "trustworthy", "trust score"]):
+            filters["feature_group_filter"] = "trust"
+        elif any(word in query_lower for word in ["interest", "hobby", "passion", "enjoy"]):
+            filters["feature_group_filter"] = "interest"
+        elif any(word in query_lower for word in ["lifestyle", "diet", "exercise", "routine", "habit"]):
+            filters["feature_group_filter"] = "lifestyle"
+        elif any(word in query_lower for word in ["education", "job", "career", "family", "hometown"]):
+            filters["feature_group_filter"] = "background"
+
+        if any(word in query_lower for word in ["improving", "better", "positive", "progress"]):
+            filters["emotion_valence_filter"] = "positive"
+        elif any(word in query_lower for word in ["declining", "worse", "negative", "conflict"]):
+            filters["emotion_valence_filter"] = "negative"
+        elif any(word in query_lower for word in ["stable", "neutral", "steady"]):
+            filters["emotion_valence_filter"] = "neutral"
+
+        return filters
 
     # ------------------------------------------------------------------
 
@@ -87,6 +139,7 @@ class MemoryManager:
             context += f"{msg['speaker']}: {msg['message']}\n"
 
         memories = self.db_client.retrieve_memories(user_id=self.user_id, n_results=5)
+        memories = self._filter_forgotten_memories(memories)
         mem_ctx = "\nExisting memories:\n"
         if memories:
             for m in memories:
@@ -163,7 +216,26 @@ class MemoryManager:
         return []
 
     def _callback(self, action: MemoryAction) -> List[Memory]:
-        return self.db_client.retrieve_memories(self.user_id, query_text=action.callback_query, n_results=5)
+        memories = self.db_client.retrieve_memories(
+            self.user_id,
+            query_text=action.callback_query,
+            n_results=5,
+        )
+        return self._filter_forgotten_memories(memories)
 
     def get_all_memories(self) -> List[Memory]:
-        return self.db_client.retrieve_memories(self.user_id, n_results=100)
+        memories = self.db_client.retrieve_memories(self.user_id, n_results=100)
+        return self._filter_forgotten_memories(memories)
+
+    def _filter_forgotten_memories(self, memories: Optional[List[Memory]]) -> List[Memory]:
+        """Drop memories the user has asked the system to forget."""
+        if not memories:
+            return []
+        if not self.privacy_manager:
+            return list(memories)
+
+        forgotten_ids = self.privacy_manager.get_forgotten_ids()
+        if not forgotten_ids:
+            return list(memories)
+
+        return [memory for memory in memories if memory.memory_id not in forgotten_ids]

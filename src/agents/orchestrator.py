@@ -25,6 +25,10 @@ from src.agents.conversation_sentiment_agent import ConversationSentimentAgent
 from src.agents.conversation_hint_agent import ConversationHintAgent
 from src.agents.digital_twin_agent import DigitalTwinAgent
 from src.agents.love_prediction_agent import LovePredictionAgent
+from src.agents.memory_privacy_manager import MemoryPrivacyManager
+from src.agents.personality_consistency import PersonalityConsistencyTracker
+from src.agents.cross_mode_validator import CrossModeValidator
+from src.agents.persona_stabilizer import PersonaStabilizer
 from src.persistence.session_store import SessionStore
 from src.agents.hooks import HookRegistry, HookDeniedError
 from src.agents.hooks_builtin import LoggingHook, CostTrackingHook, ScamRiskGateHook
@@ -53,7 +57,13 @@ class OrchestratorAgent:
 
         self.feature_agent = FeaturePredictionAgent(user_id)
         self.session_store = SessionStore()
-        self.memory_manager = MemoryManager(user_id, use_three_layer=True, session_store=self.session_store)
+        self.privacy_manager = MemoryPrivacyManager()
+        self.memory_manager = MemoryManager(
+            user_id,
+            use_three_layer=True,
+            session_store=self.session_store,
+            privacy_manager=self.privacy_manager,
+        )
         self.emotion_agent = EmotionAgent()
         self.scam_agent = ScamDetectionAgent(use_semantic=True)
         self.question_agent = QuestionStrategyAgent()
@@ -69,6 +79,9 @@ class OrchestratorAgent:
         self.conversation_hint_agent = ConversationHintAgent()
         self.digital_twin_agent = DigitalTwinAgent()
         self.love_prediction_agent = LovePredictionAgent()
+        self.personality_consistency_tracker = PersonalityConsistencyTracker()
+        self.cross_mode_validator = CrossModeValidator()
+        self.persona_stabilizer = PersonaStabilizer()
 
         register_builtin_skills()
 
@@ -94,7 +107,12 @@ class OrchestratorAgent:
         self.ctx = AgentContext(user_id=self.user_id)
         self.state_machine.reset()
         self.current_bot = None
-        self.memory_manager = MemoryManager(self.user_id, use_three_layer=True, session_store=self.session_store)
+        self.memory_manager = MemoryManager(
+            self.user_id,
+            use_three_layer=True,
+            session_store=self.session_store,
+            privacy_manager=self.privacy_manager,
+        )
 
         bot_summaries = self.bot_pool.get_agent_summaries()
         if not bot_summaries:
@@ -163,6 +181,7 @@ class OrchestratorAgent:
 
         # Update context
         self.ctx.user_message = message
+        self.ctx.stability_prompt = ""
         self.ctx.add_to_history("user", message)
         self.ctx.turn_count = self.state_machine.context.turn_count + 1
         self.ctx.current_state = self.state_machine.context.current_state
@@ -176,7 +195,10 @@ class OrchestratorAgent:
 
         # --- Phase 1: parallel independent analyses ---
         try:
-            await self._run_parallel_analyses(message, actions)
+            parallel_results = await self._run_parallel_analyses(message, actions)
+            if parallel_results.get("sudden_shift"):
+                response["emotion_sudden_shift"] = parallel_results["sudden_shift"]
+                logger.warning(f"[Orchestrator] Sudden emotion shift detected: {parallel_results['sudden_shift']}")
         except Exception as e:
             logger.error(f"[Orchestrator] Parallel analyses failed: {e}")
 
@@ -185,6 +207,54 @@ class OrchestratorAgent:
             try:
                 result = await self._run_with_hooks("feature_update", self._update_features)
                 response["feature_update"] = result
+
+                if self.ctx.digital_twin_created and self.ctx.digital_twin:
+                    twin_changes = self.digital_twin_agent.get_significant_trait_changes(
+                        self.ctx.predicted_features,
+                        self.ctx.digital_twin,
+                    )
+                    if twin_changes:
+                        twin_update = self.digital_twin_agent.update_twin(self.ctx)
+                        if twin_update:
+                            response["digital_twin_updated"] = twin_update
+
+                self.personality_consistency_tracker.record_snapshot(
+                    turn=self.ctx.turn_count,
+                    features=self.ctx.predicted_features,
+                    confidences=self.ctx.feature_confidences,
+                )
+                self.persona_stabilizer.extract_anchors_from_features(
+                    turn=self.ctx.turn_count,
+                    features=self.ctx.predicted_features,
+                    confidences=self.ctx.feature_confidences,
+                    conversation_excerpt=self._latest_conversation_excerpt(),
+                )
+                consistency = self.personality_consistency_tracker.compute_consistency()
+                self.ctx.personality_consistency_score = consistency["score"]
+                self.ctx.personality_consistency_status = consistency["status"]
+                self.ctx.stability_prompt = self.persona_stabilizer.generate_stability_prompt(consistency) or ""
+                response["personality_consistency"] = self.personality_consistency_tracker.get_report()
+                if self.ctx.stability_prompt:
+                    response["persona_stabilization"] = self.persona_stabilizer.get_stabilization_report()
+
+                # Cross-mode consistency
+                comm_style = self.ctx.predicted_features.get("communication_style", "casual")
+                self.cross_mode_validator.capture_snapshot(self.ctx.turn_count, self.ctx.predicted_features, comm_style)
+                cross_mode = self.cross_mode_validator.validate_consistency()
+                self.ctx.cross_mode_consistency = cross_mode.get("score", 1.0)
+                response["cross_mode_consistency"] = cross_mode
+
+                sudden_shift = self.personality_consistency_tracker.detect_sudden_shift()
+                if sudden_shift:
+                    logger.warning(
+                        "[Orchestrator] Personality shift detected at turn {}: {} {:.3f} -> {:.3f} "
+                        "(delta={:.3f})",
+                        sudden_shift["turn"],
+                        sudden_shift["trait"],
+                        sudden_shift["old_value"],
+                        sudden_shift["new_value"],
+                        sudden_shift["delta"],
+                    )
                 self.state_machine.handle_feature_updated()
             except HookDeniedError as e:
                 logger.info(f"[Orchestrator] {e}")
@@ -322,6 +392,12 @@ class OrchestratorAgent:
             response["memory_stats"] = self.memory_manager.get_memory_stats()
         except Exception:
             pass
+
+        if self._should_include_privacy_report(message):
+            try:
+                response["privacy_report"] = self.privacy_manager.get_privacy_report()
+            except Exception as e:
+                logger.error(f"[Orchestrator] Privacy report generation failed: {e}")
 
         # Scam / emotion in response
         if self.ctx.scam_warning_level != "none":
@@ -469,6 +545,7 @@ class OrchestratorAgent:
 
     async def _run_parallel_analyses(self, message: str, actions: list):
         """Run emotion, scam, and memory retrieval in parallel via asyncio."""
+        results: Dict[str, Any] = {}
 
         async def _emotion():
             if "emotion_analysis" not in actions:
@@ -485,6 +562,8 @@ class OrchestratorAgent:
             if emo.get("reply_strategy"):
                 strategy = emo["reply_strategy"]
                 self.ctx.reply_strategy = strategy.get("approach", "")
+            if emo.get("sudden_shift"):
+                results["sudden_shift"] = emo["sudden_shift"]
 
         async def _scam():
             if "scam_check" not in actions:
@@ -501,6 +580,19 @@ class OrchestratorAgent:
             self.ctx.retrieved_memories = memories
 
         await asyncio.gather(_emotion(), _scam(), _memory(), return_exceptions=True)
+        return results
+
+    def _latest_conversation_excerpt(self, max_messages: int = 2) -> str:
+        """Return the latest conversation turn text for anchor extraction."""
+        recent = self.ctx.recent_history(max_messages)
+        if not recent:
+            return self.ctx.user_message
+        lines = [
+            f"{item.get('speaker', 'unknown')}: {item.get('message', '')}"
+            for item in recent
+            if item.get("message")
+        ]
+        return "\n".join(lines) or self.ctx.user_message
 
     def _update_features(self) -> Dict[str, Any]:
         post_threshold = self.ctx.turn_count > 10
@@ -617,9 +709,26 @@ class OrchestratorAgent:
             "emotion_history": self.ctx.emotion_history,
         }
 
+    def _should_include_privacy_report(self, message: str) -> bool:
+        message_lower = message.lower()
+        trigger_phrases = (
+            "privacy report",
+            "privacy summary",
+            "privacy status",
+            "show privacy",
+            "show me privacy",
+            "/privacy",
+        )
+        return any(phrase in message_lower for phrase in trigger_phrases)
+
     def reset_conversation(self):
         self.state_machine.reset()
         self.ctx = AgentContext(user_id=self.user_id)
         self.current_bot = None
-        self.memory_manager = MemoryManager(self.user_id)
+        self.memory_manager = MemoryManager(
+            self.user_id,
+            use_three_layer=True,
+            session_store=self.session_store,
+            privacy_manager=self.privacy_manager,
+        )
         logger.info(f"Conversation reset for user {self.user_id}")

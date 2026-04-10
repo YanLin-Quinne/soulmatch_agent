@@ -35,6 +35,9 @@ class AgentContext:
     predicted_features: dict[str, Any] = field(default_factory=dict)
     feature_confidences: dict[str, float] = field(default_factory=dict)
     low_confidence_features: list[str] = field(default_factory=list)
+    personality_consistency_score: float = 1.0
+    personality_consistency_status: str = "stable"
+    stability_prompt: str = ""
 
     # --- Memory (written by MemoryManager) ---
     retrieved_memories: list[str] = field(default_factory=list)
@@ -104,6 +107,8 @@ class AgentContext:
     # --- Digital twin (written by DigitalTwinAgent) ---
     digital_twin: Optional[dict] = None  # twin profile data
     digital_twin_created: bool = False
+    twin_evolution: list[dict] = field(default_factory=list)
+    twin_conversation_history: list[dict] = field(default_factory=list)
     twin_messages: list[dict] = field(default_factory=list)
 
     # --- Love prediction (written by LovePredictionAgent) ---
@@ -130,6 +135,10 @@ class AgentContext:
     # --- Multi-participant session ---
     session_participants: list[str] = field(default_factory=list)
     active_pair: tuple[str, str] = ("", "")
+
+    # --- Cross-mode personality validation ---
+    conversation_mode: str = "social"
+    cross_mode_consistency: float = 1.0
 
     # -----------------------------------------------------------------
     # Helpers

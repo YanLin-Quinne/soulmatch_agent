@@ -1,6 +1,6 @@
 """ChromaDB client for vector memory storage"""
 
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pathlib import Path
 from loguru import logger
 
@@ -46,6 +46,11 @@ class ChromaDBClient:
         )
         
         return collection
+
+    @staticmethod
+    def normalize_filter_metadata(filter_metadata: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Normalize optional metadata filters for ChromaDB queries."""
+        return filter_metadata or None
     
     def add_memory(
         self, 
@@ -135,25 +140,26 @@ class ChromaDBClient:
         """Retrieve memories by similarity or filter"""
         
         collection = self.get_or_create_collection(user_id)
+        where_clause = self.normalize_filter_metadata(filter_metadata)
         
         # Query
         if query_embedding:
             results = collection.query(
                 query_embeddings=[query_embedding],
                 n_results=n_results,
-                where=filter_metadata
+                where=where_clause
             )
         elif query_text:
             results = collection.query(
                 query_texts=[query_text],
                 n_results=n_results,
-                where=filter_metadata
+                where=where_clause
             )
         else:
             # Get all
             results = collection.get(
                 limit=n_results,
-                where=filter_metadata
+                where=where_clause
             )
         
         # Convert to Memory objects
